@@ -14,9 +14,10 @@ import type { LocalizedText } from "@/lib/page-content";
 import { Badge, Button, Card, Input, Spinner } from "@/components/ui";
 import { ConfirmDialog } from "@/components/modal";
 import { ViewOnlyNotice } from "@/components/gate";
+import { WifiGuests, type WifiGuest } from "@/components/builders/WifiGuests";
 import { seedContent } from "@/components/builders/PageContentEditor";
 import { PageWorkspace } from "@/components/builders/PageWorkspace";
-import type { BuilderServices, DesignTemplate } from "@/components/builders/host";
+import type { BuilderServices, DesignTemplate, PageOption } from "@/components/builders/host";
 
 export default function PageEditor() {
   const { pageId } = useParams<{ pageId: string }>();
@@ -55,6 +56,14 @@ export default function PageEditor() {
           .then((res) => res.translations),
       uploadImage: (file) =>
         api.upload<{ url: string }>(`/companies/${companyId}/uploads`, file).then((r) => r.url),
+      // Every other page, for the link hub's page picker.
+      pages: {
+        queryKey: ["pages", companyId, "options"],
+        list: () =>
+          api
+            .get<PageOption[]>(`/companies/${companyId}/pages`)
+            .then((all) => all.filter((p) => p.id !== pageId)),
+      },
       templates: {
         queryKey: ["design-templates", companyId],
         list: () => api.get<DesignTemplate[]>(templatesPath),
@@ -251,6 +260,19 @@ export default function PageEditor() {
         canEdit={canManage}
         services={services}
       />
+
+      {page.kind === "WIFI" && (
+        <WifiGuests
+          queryKey={["wifi-guests", companyId, pageId]}
+          list={() => api.get<WifiGuest[]>(`/companies/${companyId}/pages/${pageId}/wifi-guests`)}
+          remove={
+            canManage
+              ? (guestId) =>
+                  api.delete(`/companies/${companyId}/pages/${pageId}/wifi-guests/${guestId}`)
+              : undefined
+          }
+        />
+      )}
 
       <ConfirmDialog
         open={confirmDelete}

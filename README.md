@@ -8,8 +8,10 @@ Two surfaces in one app:
 
 1. **Dashboard** (`/app/*`, auth-gated) — the multi-tenant builder. Manage
    businesses, sites (locations), cards, and build the tap destinations.
-2. **Public tap pages** (`/c/[slug]`, `/p/[slug]`) — what a customer sees when they
-   tap an NFC card. Mobile-first and tuned to feel native on iOS.
+2. **Public tap pages** (`/c/[business]/[card]`, `/p/[slug]`) — what a customer sees
+   when they tap an NFC card. Mobile-first and tuned to feel native on iOS. Card
+   links are unique per business; cards made before that also answer the old
+   `/c/[slug]`, and a business's earlier short names keep working.
 
 ## Features
 

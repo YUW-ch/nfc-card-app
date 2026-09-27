@@ -13,13 +13,14 @@ import {
   Plus,
   ChevronRight,
   LayoutGrid,
+  Search,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useCompanyId } from "@/lib/company";
 import { formatPlanNames, usePermissions } from "@/lib/permissions";
 import type { Page, PageKind, PageSummary } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
-import { Badge, Button, Card, EmptyState, Field, Input, Spinner } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Field, Input, Select, Spinner } from "@/components/ui";
 import { Modal } from "@/components/modal";
 import { UpgradeNotice, ViewOnlyNotice } from "@/components/gate";
 
@@ -70,15 +71,21 @@ export default function PagesPage() {
     },
   });
 
+  const [search, setSearch] = useState("");
+  const [kindFilter, setKindFilter] = useState<PageKind | "">("");
+
   const grouped = useMemo(() => {
+    const q = search.trim().toLowerCase();
     const map = new Map<PageKind, PageSummary[]>();
     for (const p of pages ?? []) {
+      if (kindFilter && p.kind !== kindFilter) continue;
+      if (q && !p.name.toLowerCase().includes(q) && !p.slug.toLowerCase().includes(q)) continue;
       const list = map.get(p.kind) ?? [];
       list.push(p);
       map.set(p.kind, list);
     }
     return map;
-  }, [pages]);
+  }, [pages, search, kindFilter]);
 
   const openCreate = () => {
     setKind("REVIEW");
@@ -141,6 +148,33 @@ export default function PagesPage() {
         />
       ) : (
         <div className="flex flex-col gap-8">
+          <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search pages"
+                aria-label="Search pages"
+                className="pl-10"
+              />
+            </div>
+            <Select
+              value={kindFilter}
+              onChange={(e) => setKindFilter(e.target.value as PageKind | "")}
+              aria-label="Filter by type"
+            >
+              <option value="">All types</option>
+              {KINDS.map((k) => (
+                <option key={k.kind} value={k.kind}>
+                  {k.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          {grouped.size === 0 && (
+            <p className="py-10 text-center text-sm text-muted">No pages match your search.</p>
+          )}
           {KINDS.filter((k) => grouped.has(k.kind)).map((k) => {
             const list = grouped.get(k.kind)!;
             const Icon = k.icon;

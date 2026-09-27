@@ -1,9 +1,19 @@
 "use client";
 
-import { Plus, Trash2, ArrowUp, ArrowDown, Link2, Share2, User } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Plus, Trash2, ArrowUp, ArrowDown, Link2, Share2, User, FileText } from "lucide-react";
 import { Button, Card, Field, Input, Select } from "@/components/ui";
 import { LocalizedInput } from "@/components/localized-input";
-import type { LinkHubContent, LinkHubLink } from "@/lib/page-content";
+import type { LinkHubContent, LinkHubLink, PageKind } from "@/lib/page-content";
+import { useBuilderServices, type PageOption } from "./host";
+
+const KIND_LABELS: Record<PageKind, string> = {
+  MENU: "Menu",
+  REVIEW: "Review",
+  LINKHUB: "Link hub",
+  VCARD: "Contact",
+  WIFI: "Wi-Fi",
+};
 
 const SOCIAL_PLATFORMS = ["instagram", "tiktok", "facebook", "x", "youtube", "website"] as const;
 
@@ -37,6 +47,23 @@ export function LinkHubBuilder({
       "links",
       links.map((l) => (l.id === id ? { ...l, ...patch } : l)),
     );
+
+  // The business's own pages, so the hub can open them like sub-pages.
+  const { pages } = useBuilderServices();
+  const pageList = useQuery({
+    queryKey: pages?.queryKey ?? ["builder-pages", "none"],
+    queryFn: () => pages!.list(),
+    enabled: !!pages,
+  });
+  const pageOptions = pageList.data ?? [];
+
+  const linkToPage = (link: LinkHubLink, page: PageOption | undefined) =>
+    updateLink(link.id, {
+      pageId: page?.id ?? "",
+      url: page ? `/p/${page.slug}` : "",
+      // A fresh link takes the page's name as its label.
+      ...(page && !Object.values(link.label ?? {}).some(Boolean) && { label: { de: page.name } }),
+    });
 
   return (
     <div className="flex flex-col gap-6">
@@ -73,18 +100,34 @@ export function LinkHubBuilder({
             </span>
             <p className="display text-lg text-ink">Links</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              set("links", [
-                ...links,
-                { id: crypto.randomUUID(), label: {}, url: "" },
-              ])
-            }
-          >
-            <Plus className="size-4" /> Add link
-          </Button>
+          <div className="flex flex-wrap justify-end gap-2">
+            {pages && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  set("links", [
+                    ...links,
+                    { id: crypto.randomUUID(), label: {}, url: "", pageId: "" },
+                  ])
+                }
+              >
+                <FileText className="size-4" /> Add page
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                set("links", [
+                  ...links,
+                  { id: crypto.randomUUID(), label: {}, url: "" },
+                ])
+              }
+            >
+              <Plus className="size-4" /> Add link
+            </Button>
+          </div>
         </div>
 
         {links.length === 0 && (
@@ -134,15 +177,65 @@ export function LinkHubBuilder({
                   placeholder="Book a table"
                 />
               </Field>
+              {pages && (
+                <div className="flex w-fit rounded-full bg-ink/5 p-1 text-xs font-semibold">
+                  {[
+                    { page: false, label: "Web address" },
+                    { page: true, label: "One of your pages" },
+                  ].map((o) => {
+                    const active = (l.pageId !== undefined) === o.page;
+                    return (
+                      <button
+                        key={o.label}
+                        type="button"
+                        onClick={() =>
+                          active
+                            ? undefined
+                            : updateLink(l.id, o.page ? { pageId: "", url: "" } : { pageId: undefined, url: "" })
+                        }
+                        className={`rounded-full px-3 py-1.5 transition ${
+                          active ? "bg-white text-ink shadow-sm" : "text-muted"
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <div className="grid gap-3 sm:grid-cols-[1fr_10rem]">
-                <Field label="URL">
-                  <Input
-                    type="url"
-                    placeholder="https://…"
-                    value={l.url}
-                    onChange={(e) => updateLink(l.id, { url: e.target.value })}
-                  />
-                </Field>
+                {l.pageId !== undefined ? (
+                  <Field
+                    label="Page"
+                    hint={
+                      pageOptions.find((p) => p.id === l.pageId)?.published === false
+                        ? "This page is a draft. Guests only see it once it is published."
+                        : undefined
+                    }
+                  >
+                    <Select
+                      value={l.pageId}
+                      onChange={(e) => linkToPage(l, pageOptions.find((p) => p.id === e.target.value))}
+                    >
+                      <option value="">{pageList.isLoading ? "Loading pages…" : "Choose a page"}</option>
+                      {pageOptions.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} · {KIND_LABELS[p.kind]}
+                          {p.published ? "" : " (draft)"}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                ) : (
+                  <Field label="URL">
+                    <Input
+                      type="url"
+                      placeholder="https://…"
+                      value={l.url}
+                      onChange={(e) => updateLink(l.id, { url: e.target.value })}
+                    />
+                  </Field>
+                )}
                 <Field label="Icon" hint="Optional">
                   <Input
                     placeholder="calendar"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { availableLocales, DEFAULT_LOCALE } from "@/lib/i18n";
+import { availableLocales, DEFAULT_LOCALE, pickLocalized } from "@/lib/i18n";
 import type {
   LinkHubContent,
   Locale,
@@ -19,7 +19,7 @@ import { ReviewView } from "./ReviewView";
 import { MenuView } from "./MenuView";
 import { LinkHubView } from "./LinkHubView";
 import { VCardView } from "./VCardView";
-import { WifiView } from "./WifiView";
+import { WifiView, type WifiAccessClient } from "./WifiView";
 
 export interface PublicPage {
   id?: string;
@@ -27,6 +27,8 @@ export interface PublicPage {
   name: string;
   theme?: PageTheme;
   content?: PageContent;
+  /** The business, named in the Wi-Fi privacy note. */
+  companyName?: string;
 }
 
 function PoweredBy() {
@@ -53,6 +55,8 @@ function localizedTexts(kind: PageKind, content: PageContent, theme?: PageTheme)
       for (const i of s.items ?? []) texts.push(i.name, i.description);
     }
   }
+  // The Wi-Fi page's own copy exists in every language.
+  if (kind === "WIFI") texts.push({ de: "-", en: "-", fr: "-", it: "-" });
   if (kind === "LINKHUB") {
     const c = content as LinkHubContent;
     texts.push(c.headline, ...(c.links ?? []).map((l) => l.label));
@@ -64,7 +68,16 @@ function localizedTexts(kind: PageKind, content: PageContent, theme?: PageTheme)
  * Renders a page exactly as guests see it. Used by the public routes and, with
  * `embedded`, by the editor preview.
  */
-export function PublicRenderer({ page, embedded = false }: { page: PublicPage; embedded?: boolean }) {
+export function PublicRenderer({
+  page,
+  embedded = false,
+  wifi,
+}: {
+  page: PublicPage;
+  embedded?: boolean;
+  /** The host's Wi-Fi access endpoints. Absent in the editor preview. */
+  wifi?: WifiAccessClient;
+}) {
   const { kind, name, theme } = page;
   const content = (page.content ?? {}) as PageContent;
 
@@ -90,13 +103,21 @@ export function PublicRenderer({ page, embedded = false }: { page: PublicPage; e
       view = <MenuView content={content as MenuContent} name={name} locale={locale} />;
       break;
     case "LINKHUB":
-      view = <LinkHubView content={content as LinkHubContent} locale={locale} />;
+      view = <LinkHubView content={content as LinkHubContent} locale={locale} embedded={embedded} />;
       break;
     case "VCARD":
       view = <VCardView content={content as VCardContent} name={name} />;
       break;
     case "WIFI":
-      view = <WifiView content={content as WifiContent} name={name} />;
+      view = (
+        <WifiView
+          content={content as WifiContent}
+          name={name}
+          locale={locale}
+          businessName={page.companyName || pickLocalized(theme?.title, locale) || name}
+          client={wifi}
+        />
+      );
       break;
     default:
       view = (

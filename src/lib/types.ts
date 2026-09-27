@@ -52,11 +52,15 @@ export interface Card {
   locationId: string | null;
   name: string;
   type: CardType;
+  /** Zone inside the location ("Terrasse", "Saal"), for grouping many cards. */
+  area: string | null;
   slug: string;
   uid: string | null;
   status: CardStatus;
   design: CardDesign;
   activePageId: string | null;
+  /** Custom link instead of a page (web address, tel:, mailto:, sms:). */
+  linkUrl: string | null;
   activePage?: Pick<PageSummary, "id" | "name" | "kind" | "slug" | "published"> | null;
   location?: { id: string; name: string } | null;
   createdAt: string;

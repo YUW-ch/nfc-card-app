@@ -1,10 +1,19 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import type { Locale, LocalizedText, PageTheme } from "@/lib/page-content";
+import type { Locale, LocalizedText, PageKind, PageTheme } from "@/lib/page-content";
 
 /** Translates `text` from `from` into each of `to`, returning one string per target. */
 export type Translator = (text: string, from: Locale, to: Locale[]) => Promise<LocalizedText>;
+
+/** One of the business's pages, as offered by the link hub's page picker. */
+export interface PageOption {
+  id: string;
+  name: string;
+  kind: PageKind;
+  slug: string;
+  published: boolean;
+}
 
 export interface DesignTemplate {
   id: string;
@@ -22,6 +31,12 @@ export interface BuilderServices {
   translate?: Translator;
   /** Stores an image and resolves to its public URL. */
   uploadImage?: (file: Blob) => Promise<string>;
+  /** The business's other pages, so a link hub can link to them. */
+  pages?: {
+    /** react-query key for the list, unique per company. */
+    queryKey: readonly unknown[];
+    list: () => Promise<PageOption[]>;
+  };
   templates?: {
     /** react-query key for the list, unique per company. */
     queryKey: readonly unknown[];

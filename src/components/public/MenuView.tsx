@@ -92,7 +92,7 @@ export function MenuView({
       {/* Sticky category tabs */}
       {sections.length > 1 && (
         <div
-          className="no-scrollbar sticky top-0 z-10 -mx-5 flex gap-2 overflow-x-auto px-5 py-3 backdrop-blur-md"
+          className="no-scrollbar sticky top-[var(--safe-top,env(safe-area-inset-top))] z-10 -mx-5 flex gap-2 overflow-x-auto px-5 py-3 backdrop-blur-md"
           style={{ background: "color-mix(in srgb, var(--pt-bg) 85%, transparent)" }}
         >
           {sections.map((s) => {

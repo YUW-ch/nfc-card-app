@@ -67,3 +67,8 @@ export const api = {
   /** POST a file as its raw bytes (the upload endpoints read the body directly). */
   upload: <T>(path: string, file: Blob) => request<T>("POST", path, { body: file }),
 };
+
+/** Absolute API URL for links the browser opens itself (downloads, profiles). */
+export function apiUrl(path: string): string {
+  return buildUrl(path);
+}

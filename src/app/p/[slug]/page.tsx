@@ -4,9 +4,10 @@ import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { FileQuestion } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
+import { wifiAccessClient } from "@/lib/wifi-access";
 import type { PageKind, PageTheme, PageContent } from "@/lib/types";
 import { PublicRenderer } from "@/components/public/PublicRenderer";
-import { TapLoader, TapMessage } from "@/app/c/[slug]/page";
+import { TapLoader, TapMessage } from "@/components/tap";
 
 type PageResponse = {
   status: "ok";
@@ -17,6 +18,7 @@ type PageResponse = {
     theme?: PageTheme;
     content?: PageContent;
     slug: string;
+    companyName?: string;
   };
 };
 
@@ -43,5 +45,10 @@ export default function PublicPageRoute() {
     );
   }
 
-  return <PublicRenderer page={data.page} />;
+  return (
+      <PublicRenderer
+        page={data.page}
+        wifi={wifiAccessClient(data.page.slug)}
+      />
+    );
 }

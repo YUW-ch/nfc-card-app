@@ -98,6 +98,17 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* Keeps public pages clear of the notch, status bar, rounded corners and home
+   indicator (the public routes use viewport-fit=cover). Always at least a
+   little breathing room, more where the device needs it. The editor preview
+   sets --safe-top / --safe-bottom to simulate a phone. */
+.safe-area {
+  padding-top: max(0.75rem, var(--safe-top, env(safe-area-inset-top)));
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: max(1rem, var(--safe-bottom, env(safe-area-inset-bottom)));
+  padding-left: env(safe-area-inset-left);
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

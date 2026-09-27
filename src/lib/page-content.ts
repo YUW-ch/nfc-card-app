@@ -107,8 +107,11 @@ export interface MenuContent {
 export interface LinkHubLink {
   id: string;
   label: LocalizedText;
+  /** Web address, or `/p/<slug>` when the link opens one of the business's own pages. */
   url: string;
   icon?: string;
+  /** Set when the link opens one of the business's own pages (a sub-page of the hub). */
+  pageId?: string;
 }
 
 export interface SocialLink {
@@ -137,9 +140,27 @@ export interface VCardContent {
 
 export interface WifiContent {
   ssid: string;
+  /** Absent on the public page while guest access is on (handed out after the email step). */
   password?: string;
   encryption: "WPA" | "WEP" | "nopass";
   hidden?: boolean;
+  guestAccess?: WifiGuestAccess;
+}
+
+/**
+ * Who gets the password. "open": everyone. "email": guests leave their email
+ * first. "verify": guests confirm their email with a 6-digit code.
+ */
+export type WifiAccessMode = "open" | "email" | "verify";
+
+export interface WifiGuestAccess {
+  mode?: WifiAccessMode;
+  /** Offer an (unticked) opt-in to news and offers by email. */
+  marketing?: boolean;
+  /** The business's own privacy policy, linked from the privacy note. */
+  privacyUrl?: string;
+  /** Where guests withdraw consent or ask for deletion. */
+  contactEmail?: string;
 }
 
 export type PageContent =

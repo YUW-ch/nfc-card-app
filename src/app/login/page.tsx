@@ -36,6 +36,7 @@ const DEV_ACCOUNTS =
         { email: "starter@taplino.ch", label: "Starter", hint: "Café Starter" },
         { email: "pro@taplino.ch", label: "Pro", hint: "Bistro Pro" },
         { email: "managed@taplino.ch", label: "Managed", hint: "Hotel Managed" },
+        { email: "demo@taplino.ch", label: "Demo", hint: "Trattoria Sole, sales demo" },
       ].map((a) => ({ ...a, password: "taplino-dev" }))
     : [];
 

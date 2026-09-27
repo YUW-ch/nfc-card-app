@@ -29,12 +29,21 @@ export function PublicShell({
   return (
     <div
       className={cn(
-        "tap-safe flex w-full flex-col items-center",
+        // safe-area pads by the device insets (the preview simulates them).
+        "tap-safe safe-area flex w-full flex-col items-center",
         embedded ? "min-h-full" : "min-h-[100dvh]",
       )}
       style={themeStyle(theme)}
     >
       {fonts && <link rel="stylesheet" href={fonts} precedence="default" />}
+      {!embedded && (
+        // Solid strip behind the status bar so scrolled content never shows under the clock.
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-x-0 top-0 z-20 h-[var(--safe-top,env(safe-area-inset-top))]"
+          style={{ background: "var(--pt-bg)" }}
+        />
+      )}
       <div className="flex w-full max-w-md flex-1 flex-col">
         {header}
         <div className="flex flex-1 flex-col px-5 pb-10">{children}</div>
@@ -108,11 +117,11 @@ export function BrandHeader({
 
   if (!hasBrand) {
     return locales.length > 1 ? (
-      <div className="flex justify-end px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+      <div className="flex justify-end px-5 pt-4">
         {switcher}
       </div>
     ) : (
-      <div className="pt-[max(1rem,env(safe-area-inset-top))]" />
+      <div className="pt-4" />
     );
   }
 
@@ -122,12 +131,12 @@ export function BrandHeader({
         // eslint-disable-next-line @next/next/no-img-element
         <img src={t.coverUrl} alt="" className="h-48 w-full object-cover" />
       ) : (
-        <div className="pt-[max(1.25rem,env(safe-area-inset-top))]" />
+        <div className="pt-5" />
       )}
 
       {locales.length > 1 && (
         <div
-          className="absolute right-4 top-[max(0.75rem,env(safe-area-inset-top))] rounded-[var(--pt-radius)] p-1"
+          className="absolute right-4 top-3 rounded-[var(--pt-radius)] p-1"
           style={
             t.coverUrl
               ? { background: "color-mix(in srgb, var(--pt-bg) 80%, transparent)" }

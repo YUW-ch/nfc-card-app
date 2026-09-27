@@ -30,7 +30,21 @@ const SOCIAL_ICONS: Record<string, LucideIcon> = {
   telegram: TelegramIcon,
 };
 
-export function LinkHubView({ content, locale }: { content: LinkHubContent; locale: Locale }) {
+/** `/p/<slug>` links point at another page of the same business. */
+function isOwnPage(url: string | undefined): boolean {
+  return !!url && url.startsWith("/p/");
+}
+
+export function LinkHubView({
+  content,
+  locale,
+  embedded = false,
+}: {
+  content: LinkHubContent;
+  locale: Locale;
+  /** In the editor preview every link opens a new tab, so the editor stays open. */
+  embedded?: boolean;
+}) {
   const links = Array.isArray(content?.links) ? content.links : [];
   const socials = Array.isArray(content?.socials) ? content.socials : [];
   const headline = pickLocalized(content?.headline, locale);
@@ -53,7 +67,8 @@ export function LinkHubView({ content, locale }: { content: LinkHubContent; loca
           <a
             key={link.id}
             href={link.url || "#"}
-            target="_blank"
+            // The business's own pages open in place, like sub-pages of the hub.
+            target={isOwnPage(link.url) && !embedded ? undefined : "_blank"}
             rel="noopener noreferrer"
             className="flex min-h-[56px] w-full items-center justify-center rounded-[var(--pt-radius)] border-2 px-6 text-base font-semibold transition active:scale-[0.98]"
             style={{ borderColor: "var(--pt-brand)", background: "var(--pt-surface)" }}
