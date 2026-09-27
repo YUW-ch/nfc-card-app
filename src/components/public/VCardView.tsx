@@ -16,8 +16,7 @@ import {
   Send as TelegramIcon,
   type LucideIcon,
 } from "lucide-react";
-import type { VCardContent, PageTheme, SocialLink } from "@/lib/types";
-import { DEFAULT_BRAND, readableOn } from "./PublicShell";
+import type { VCardContent, SocialLink } from "@/lib/page-content";
 
 const SOCIAL_ICONS: Record<string, LucideIcon> = {
   instagram: Instagram,
@@ -69,14 +68,10 @@ function buildVCard(c: VCardContent): string {
 export function VCardView({
   content,
   name,
-  theme,
 }: {
   content: VCardContent;
   name: string;
-  theme?: PageTheme;
 }) {
-  const brand = theme?.brandColor || DEFAULT_BRAND;
-  const onBrand = readableOn(brand);
 
   const first = content?.firstName ?? "";
   const last = content?.lastName ?? "";
@@ -84,7 +79,6 @@ export function VCardView({
   const phones = content?.phones ?? [];
   const emails = content?.emails ?? [];
   const socials: SocialLink[] = content?.socials ?? [];
-  const avatarUrl = theme?.logoUrl;
 
   function download() {
     const vcard = buildVCard(content);
@@ -103,19 +97,14 @@ export function VCardView({
   const primaryEmail = emails[0]?.address;
 
   return (
-    <div className="flex flex-1 flex-col items-center pt-8 text-center">
+    <div className="flex flex-1 flex-col items-center pt-4 text-center">
       {/* Avatar */}
-      {avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={avatarUrl} alt={fullName} className="size-28 rounded-full object-cover shadow-md" />
-      ) : (
-        <div
-          className="flex size-28 items-center justify-center rounded-full text-4xl font-bold shadow-md"
-          style={{ background: brand, color: onBrand }}
-        >
-          {initials(first, last)}
-        </div>
-      )}
+      <div
+        className="flex size-24 items-center justify-center rounded-full text-3xl font-bold shadow-md"
+        style={{ background: "var(--pt-brand)", color: "var(--pt-on-brand)" }}
+      >
+        {initials(first, last)}
+      </div>
 
       <p className="display mt-5 text-3xl">{fullName}</p>
       {content?.title && <p className="mt-1 text-base opacity-70">{content.title}</p>}
@@ -125,8 +114,8 @@ export function VCardView({
       <button
         type="button"
         onClick={download}
-        className="mt-8 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full text-lg font-semibold shadow-lg transition active:scale-[0.98]"
-        style={{ background: brand, color: onBrand }}
+        className="mt-8 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[var(--pt-radius)] text-lg font-semibold shadow-lg transition active:scale-[0.98]"
+        style={{ background: "var(--pt-brand)", color: "var(--pt-on-brand)" }}
       >
         <UserPlus className="size-6" />
         Add to contacts
@@ -137,20 +126,20 @@ export function VCardView({
         {primaryPhone && (
           <a
             href={`tel:${primaryPhone}`}
-            className="flex min-h-[52px] items-center justify-center gap-2 rounded-full border-2 px-6 text-base font-semibold transition active:scale-[0.98]"
-            style={{ borderColor: brand }}
+            className="flex min-h-[52px] items-center justify-center gap-2 rounded-[var(--pt-radius)] border-2 px-6 text-base font-semibold transition active:scale-[0.98]"
+            style={{ borderColor: "var(--pt-brand)", background: "var(--pt-surface)" }}
           >
-            <Phone className="size-5" style={{ color: brand }} />
+            <Phone className="size-5" style={{ color: "var(--pt-brand)" }} />
             Call
           </a>
         )}
         {primaryEmail && (
           <a
             href={`mailto:${primaryEmail}`}
-            className="flex min-h-[52px] items-center justify-center gap-2 rounded-full border-2 px-6 text-base font-semibold transition active:scale-[0.98]"
-            style={{ borderColor: brand }}
+            className="flex min-h-[52px] items-center justify-center gap-2 rounded-[var(--pt-radius)] border-2 px-6 text-base font-semibold transition active:scale-[0.98]"
+            style={{ borderColor: "var(--pt-brand)", background: "var(--pt-surface)" }}
           >
-            <Mail className="size-5" style={{ color: brand }} />
+            <Mail className="size-5" style={{ color: "var(--pt-brand)" }} />
             Email
           </a>
         )}
@@ -159,10 +148,10 @@ export function VCardView({
             href={content.website}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex min-h-[52px] items-center justify-center gap-2 rounded-full border-2 px-6 text-base font-semibold transition active:scale-[0.98]"
-            style={{ borderColor: brand }}
+            className="flex min-h-[52px] items-center justify-center gap-2 rounded-[var(--pt-radius)] border-2 px-6 text-base font-semibold transition active:scale-[0.98]"
+            style={{ borderColor: "var(--pt-brand)", background: "var(--pt-surface)" }}
           >
-            <Globe className="size-5" style={{ color: brand }} />
+            <Globe className="size-5" style={{ color: "var(--pt-brand)" }} />
             Website
           </a>
         )}
@@ -180,10 +169,10 @@ export function VCardView({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={s.platform}
-                className="flex size-12 items-center justify-center rounded-full transition active:scale-90"
-                style={{ background: "rgba(20,18,15,0.06)" }}
+                className="flex size-12 items-center justify-center rounded-[var(--pt-radius)] transition active:scale-90"
+                style={{ background: "var(--pt-chip)" }}
               >
-                <Icon className="size-6" style={{ color: brand }} />
+                <Icon className="size-6" style={{ color: "var(--pt-brand)" }} />
               </a>
             );
           })}

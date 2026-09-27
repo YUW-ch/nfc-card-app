@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { Star, Send, CheckCircle2 } from "lucide-react";
-import type { ReviewContent, PageTheme } from "@/lib/types";
-import { DEFAULT_BRAND, readableOn } from "./PublicShell";
+import type { ReviewContent } from "@/lib/page-content";
 
 function Stars({
   value,
@@ -34,7 +33,7 @@ function Stars({
               className="size-11"
               strokeWidth={1.5}
               style={{
-                color: filled ? "#f5a623" : "rgba(20,18,15,0.2)",
+                color: filled ? "#f5a623" : "var(--pt-line)",
                 fill: filled ? "#f5a623" : "transparent",
               }}
             />
@@ -48,14 +47,10 @@ function Stars({
 export function ReviewView({
   content,
   name,
-  theme,
 }: {
   content: ReviewContent;
   name: string;
-  theme?: PageTheme;
 }) {
-  const brand = theme?.brandColor || DEFAULT_BRAND;
-  const onBrand = readableOn(brand);
   const reviewUrl = content?.reviewUrl;
   const threshold = content?.threshold ?? 4;
   const smart = content?.collectNegativeInternally === true;
@@ -81,23 +76,11 @@ export function ReviewView({
     setSent(true);
   }
 
-  const heading = theme?.logoUrl ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={theme.logoUrl}
-      alt={name}
-      className="mx-auto mb-6 max-h-20 w-auto object-contain"
-    />
-  ) : (
-    <p className="display mb-2 text-3xl">{name}</p>
-  );
-
   // ── Smart routing off: straight to Google review ──
   if (!smart) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
-        {heading}
-        <div className="mb-8 mt-4 flex items-center justify-center gap-1.5">
+        <div className="mb-8 flex items-center justify-center gap-1.5">
           {[1, 2, 3, 4, 5].map((n) => (
             <Star key={n} className="size-8" style={{ color: "#f5a623", fill: "#f5a623" }} />
           ))}
@@ -109,8 +92,8 @@ export function ReviewView({
           href={reviewUrl || "#"}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex min-h-[56px] w-full max-w-xs items-center justify-center rounded-full px-6 text-lg font-semibold shadow-lg transition active:scale-[0.98]"
-          style={{ background: brand, color: onBrand }}
+          className="flex min-h-[56px] w-full max-w-xs items-center justify-center rounded-[var(--pt-radius)] px-6 text-lg font-semibold shadow-lg transition active:scale-[0.98]"
+          style={{ background: "var(--pt-brand)", color: "var(--pt-on-brand)" }}
         >
           Leave us a Google review
         </a>
@@ -122,7 +105,7 @@ export function ReviewView({
   if (sent) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
-        <CheckCircle2 className="mb-5 size-16" style={{ color: brand }} strokeWidth={1.5} />
+        <CheckCircle2 className="mb-5 size-16" style={{ color: "var(--pt-brand)" }} strokeWidth={1.5} />
         <p className="display text-2xl">Thank you</p>
         <p className="mt-2 max-w-xs text-base opacity-70">
           Your feedback helps us get better. We appreciate you taking the time.
@@ -135,8 +118,7 @@ export function ReviewView({
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
-      {heading}
-      <p className="mb-8 mt-4 text-xl font-semibold">How was your experience?</p>
+      <p className="mb-8 text-xl font-semibold">How was your experience?</p>
       <Stars value={rating} onPick={handlePick} interactive={!lowRating} />
 
       {lowRating && (
@@ -149,13 +131,14 @@ export function ReviewView({
             onChange={(e) => setFeedback(e.target.value)}
             placeholder="Your feedback..."
             rows={4}
-            className="w-full resize-y rounded-2xl border border-black/10 bg-white/70 p-4 text-base outline-none focus:border-black/30"
+            className="w-full resize-y rounded-[var(--pt-card-radius)] border p-4 text-base outline-none"
+            style={{ background: "var(--pt-surface)", borderColor: "var(--pt-line)", color: "inherit" }}
           />
           <button
             type="button"
             onClick={submitFeedback}
-            className="mt-4 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full text-base font-semibold transition active:scale-[0.98]"
-            style={{ background: brand, color: onBrand }}
+            className="mt-4 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[var(--pt-radius)] text-base font-semibold transition active:scale-[0.98]"
+            style={{ background: "var(--pt-brand)", color: "var(--pt-on-brand)" }}
           >
             <Send className="size-5" />
             Send feedback

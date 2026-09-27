@@ -1,6 +1,5 @@
 "use client";
 
-import { Palette } from "lucide-react";
 import type {
   LinkHubContent,
   MenuContent,
@@ -11,14 +10,12 @@ import type {
   VCardContent,
   WifiContent,
 } from "@/lib/page-content";
-import { Card, Field, Input } from "@/components/ui";
+import { DesignPanel } from "./DesignPanel";
 import { ReviewBuilder, emptyReviewContent } from "./ReviewBuilder";
 import { MenuBuilder, emptyMenuContent } from "./MenuBuilder";
 import { LinkHubBuilder } from "./LinkHubBuilder";
 import { VCardBuilder, emptyVCardContent } from "./VCardBuilder";
 import { WifiBuilder, emptyWifiContent } from "./WifiBuilder";
-
-const DEFAULT_BRAND = "#2f6df0";
 
 /** Seed a builder's content from a stored page, filling missing fields. */
 export function seedContent(kind: PageKind, stored: unknown): PageContent {
@@ -46,19 +43,22 @@ export function seedContent(kind: PageKind, stored: unknown): PageContent {
   }
 }
 
-/** The kind-specific builder plus the Design card, as used by the page editors. */
+/** The kind-specific builder plus the design panels, as used by the page editors. */
 export function PageContentEditor({
   kind,
   content,
   onContentChange,
   theme,
   onThemeChange,
+  pageName,
 }: {
   kind: PageKind;
   content: PageContent;
   onContentChange: (content: PageContent) => void;
   theme: PageTheme;
   onThemeChange: (theme: PageTheme) => void;
+  /** Fallback title shown on the page when the design sets none. */
+  pageName: string;
 }) {
   return (
     <>
@@ -74,33 +74,7 @@ export function PageContentEditor({
       )}
       {kind === "WIFI" && <WifiBuilder value={content as WifiContent} onChange={onContentChange} />}
 
-      <Card className="flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <span className="flex size-9 items-center justify-center rounded-full bg-accent-soft text-accent">
-            <Palette className="size-4" />
-          </span>
-          <div>
-            <p className="display text-lg text-ink">Design</p>
-            <p className="text-xs text-muted">The accent colour used across your page.</p>
-          </div>
-        </div>
-        <Field label="Brand colour">
-          <div className="flex items-center gap-3">
-            <input
-              type="color"
-              value={theme.brandColor || DEFAULT_BRAND}
-              onChange={(e) => onThemeChange({ ...theme, brandColor: e.target.value })}
-              className="size-11 shrink-0 cursor-pointer rounded-xl border border-line bg-white p-1"
-              aria-label="Brand colour"
-            />
-            <Input
-              value={theme.brandColor ?? ""}
-              placeholder={DEFAULT_BRAND}
-              onChange={(e) => onThemeChange({ ...theme, brandColor: e.target.value })}
-            />
-          </div>
-        </Field>
-      </Card>
+      <DesignPanel theme={theme} onChange={onThemeChange} pageName={pageName} />
     </>
   );
 }

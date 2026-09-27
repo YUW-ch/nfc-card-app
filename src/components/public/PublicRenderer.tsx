@@ -1,16 +1,20 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { availableLocales, DEFAULT_LOCALE } from "@/lib/i18n";
 import type {
+  LinkHubContent,
+  Locale,
+  LocalizedText,
+  MenuContent,
+  PageContent,
   PageKind,
   PageTheme,
-  PageContent,
   ReviewContent,
-  MenuContent,
-  LinkHubContent,
   VCardContent,
   WifiContent,
-} from "@/lib/types";
-import { PublicShell } from "./PublicShell";
+} from "@/lib/page-content";
+import { BrandHeader, PublicShell } from "./PublicShell";
 import { ReviewView } from "./ReviewView";
 import { MenuView } from "./MenuView";
 import { LinkHubView } from "./LinkHubView";
@@ -40,26 +44,59 @@ function PoweredBy() {
   );
 }
 
-export function PublicRenderer({ page }: { page: PublicPage }) {
+/** Every translatable text on the page, to decide which languages to offer. */
+function localizedTexts(kind: PageKind, content: PageContent, theme?: PageTheme) {
+  const texts: (LocalizedText | undefined)[] = [theme?.title, theme?.tagline];
+  if (kind === "MENU") {
+    for (const s of (content as MenuContent).sections ?? []) {
+      texts.push(s.name);
+      for (const i of s.items ?? []) texts.push(i.name, i.description);
+    }
+  }
+  if (kind === "LINKHUB") {
+    const c = content as LinkHubContent;
+    texts.push(c.headline, ...(c.links ?? []).map((l) => l.label));
+  }
+  return texts;
+}
+
+/**
+ * Renders a page exactly as guests see it. Used by the public routes and, with
+ * `embedded`, by the editor preview.
+ */
+export function PublicRenderer({ page, embedded = false }: { page: PublicPage; embedded?: boolean }) {
   const { kind, name, theme } = page;
   const content = (page.content ?? {}) as PageContent;
+
+  const locales = useMemo(() => {
+    const found = availableLocales(...localizedTexts(kind, content, theme));
+    return found.length ? found : [DEFAULT_LOCALE];
+  }, [kind, content, theme]);
+  const [picked, setLocale] = useState<Locale>(DEFAULT_LOCALE);
+  // Fall back when the picked language disappears (e.g. while editing).
+  const locale = locales.includes(picked) ? picked : locales[0];
+
+  // Menus, review and link pages are titled by the business; contact and
+  // Wi-Fi pages carry their own big heading.
+  const fallbackTitle =
+    kind === "MENU" || kind === "REVIEW" || kind === "LINKHUB" ? name : null;
 
   let view;
   switch (kind) {
     case "REVIEW":
-      view = <ReviewView content={content as ReviewContent} name={name} theme={theme} />;
+      view = <ReviewView content={content as ReviewContent} name={name} />;
       break;
     case "MENU":
-      view = <MenuView content={content as MenuContent} name={name} theme={theme} />;
+      view = <MenuView content={content as MenuContent} name={name} locale={locale} />;
       break;
     case "LINKHUB":
-      view = <LinkHubView content={content as LinkHubContent} name={name} theme={theme} />;
+      view = <LinkHubView content={content as LinkHubContent} locale={locale} />;
       break;
     case "VCARD":
-      view = <VCardView content={content as VCardContent} name={name} theme={theme} />;
+      view = <VCardView content={content as VCardContent} name={name} />;
       break;
     case "WIFI":
-      view = <WifiView content={content as WifiContent} name={name} theme={theme} />;
+      view = <WifiView content={content as WifiContent} name={name} />;
       break;
     default:
       view = (
@@ -71,7 +108,19 @@ export function PublicRenderer({ page }: { page: PublicPage }) {
   }
 
   return (
-    <PublicShell theme={theme}>
+    <PublicShell
+      theme={theme}
+      embedded={embedded}
+      header={
+        <BrandHeader
+          theme={theme}
+          fallbackTitle={fallbackTitle}
+          locales={locales}
+          locale={locale}
+          onLocale={setLocale}
+        />
+      }
+    >
       {view}
       <PoweredBy />
     </PublicShell>

@@ -1,94 +1,168 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { Locale, PageTheme } from "@/lib/types";
-import { LOCALE_LABELS } from "@/lib/i18n";
+import { LOCALE_LABELS, pickLocalized } from "@/lib/i18n";
+import type { Locale, PageTheme } from "@/lib/page-content";
+import { LOGO_HEIGHT, fontStylesheetHref, resolveTheme, themeStyle } from "@/lib/page-theme";
 import { cn } from "@/lib/utils";
 
-export const DEFAULT_BRAND = "#2f6df0";
+// Re-exported for the views; the source of truth lives in page-theme.ts.
+export { DEFAULT_BRAND, readableOn } from "@/lib/page-theme";
 
-/** Best-effort contrast pick for text on top of a brand-colored surface. */
-export function readableOn(hex?: string): string {
-  const c = (hex ?? DEFAULT_BRAND).replace("#", "");
-  if (c.length !== 6 && c.length !== 3) return "#ffffff";
-  const full =
-    c.length === 3
-      ? c
-          .split("")
-          .map((ch) => ch + ch)
-          .join("")
-      : c;
-  const r = parseInt(full.slice(0, 2), 16);
-  const g = parseInt(full.slice(2, 4), 16);
-  const b = parseInt(full.slice(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.6 ? "#14120f" : "#ffffff";
-}
-
+/**
+ * The page frame: applies the theme (colours, fonts, corners as CSS variables),
+ * loads the theme's web fonts and centres a phone-width column. `embedded`
+ * sizes it to its container (the editor preview) instead of the viewport.
+ */
 export function PublicShell({
   theme,
+  header,
   children,
+  embedded = false,
+}: {
+  theme?: PageTheme;
+  header?: ReactNode;
+  children: ReactNode;
+  embedded?: boolean;
+}) {
+  const fonts = fontStylesheetHref(theme);
+  return (
+    <div
+      className={cn(
+        "tap-safe flex w-full flex-col items-center",
+        embedded ? "min-h-full" : "min-h-[100dvh]",
+      )}
+      style={themeStyle(theme)}
+    >
+      {fonts && <link rel="stylesheet" href={fonts} precedence="default" />}
+      <div className="flex w-full max-w-md flex-1 flex-col">
+        {header}
+        <div className="flex flex-1 flex-col px-5 pb-10">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Small language chips. Hidden when the page has a single language. */
+export function LocaleSwitcher({
+  locales,
+  locale,
+  onLocale,
+  className,
+}: {
+  locales: Locale[];
+  locale: Locale;
+  onLocale: (l: Locale) => void;
+  className?: string;
+}) {
+  if (locales.length < 2) return null;
+  return (
+    <div className={cn("no-scrollbar flex gap-1 overflow-x-auto", className)}>
+      {locales.map((l) => (
+        <button
+          key={l}
+          type="button"
+          onClick={() => onLocale(l)}
+          aria-pressed={l === locale}
+          title={LOCALE_LABELS[l]}
+          className="min-h-[32px] min-w-[36px] rounded-[var(--pt-radius)] px-2.5 text-xs font-semibold uppercase transition"
+          style={
+            l === locale
+              ? { background: "var(--pt-brand)", color: "var(--pt-on-brand)" }
+              : { background: "var(--pt-chip)", color: "inherit" }
+          }
+        >
+          {l}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The branded top of every page: optional cover photo, logo, title and
+ * tagline, plus the language switch. `fallbackTitle` is shown when the theme
+ * has no title of its own (null hides the title entirely).
+ */
+export function BrandHeader({
+  theme,
+  fallbackTitle,
   locales,
   locale,
   onLocale,
 }: {
   theme?: PageTheme;
-  children: ReactNode;
-  locales?: Locale[];
-  locale?: Locale;
-  onLocale?: (l: Locale) => void;
+  fallbackTitle: string | null;
+  locales: Locale[];
+  locale: Locale;
+  onLocale: (l: Locale) => void;
 }) {
-  const brand = theme?.brandColor || DEFAULT_BRAND;
-  const showSwitcher = locales && locales.length > 1 && onLocale && locale;
+  const t = resolveTheme(theme);
+  const title = t.showTitle ? pickLocalized(t.title, locale) || fallbackTitle : null;
+  const tagline = pickLocalized(t.tagline, locale);
+  const centered = t.headerAlign === "center";
+  const hasBrand = !!(t.coverUrl || t.logoUrl || title || tagline);
+  const switcher = (
+    <LocaleSwitcher locales={locales} locale={locale} onLocale={onLocale} />
+  );
 
-  const background = theme?.background;
-  const isImageBg = !!background && /url\(|gradient|http/i.test(background);
+  if (!hasBrand) {
+    return locales.length > 1 ? (
+      <div className="flex justify-end px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+        {switcher}
+      </div>
+    ) : (
+      <div className="pt-[max(1rem,env(safe-area-inset-top))]" />
+    );
+  }
 
   return (
-    <div
-      className="tap-safe flex min-h-[100dvh] w-full flex-col items-center"
-      style={{
-        background: background
-          ? isImageBg
-            ? background
-            : background
-          : "var(--color-paper)",
-        backgroundSize: isImageBg ? "cover" : undefined,
-        backgroundPosition: isImageBg ? "center" : undefined,
-        color: theme?.textColor || "var(--color-ink)",
-      }}
-    >
-      <div className="flex w-full max-w-md flex-1 flex-col px-5 pb-10 pt-[max(1rem,env(safe-area-inset-top))]">
-        {showSwitcher && (
-          <div className="no-scrollbar -mx-5 mb-2 flex justify-center gap-2 overflow-x-auto px-5 py-3">
-            {locales!.map((l) => {
-              const active = l === locale;
-              return (
-                <button
-                  key={l}
-                  type="button"
-                  onClick={() => onLocale!(l)}
-                  aria-pressed={active}
-                  className={cn(
-                    "min-h-[36px] shrink-0 rounded-full px-4 text-sm font-semibold transition",
-                  )}
-                  style={
-                    active
-                      ? { background: brand, color: readableOn(brand) }
-                      : {
-                          background: "rgba(20,18,15,0.06)",
-                          color: "inherit",
-                        }
-                  }
-                >
-                  {LOCALE_LABELS[l]}
-                </button>
-              );
-            })}
-          </div>
+    <header className="relative">
+      {t.coverUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={t.coverUrl} alt="" className="h-48 w-full object-cover" />
+      ) : (
+        <div className="pt-[max(1.25rem,env(safe-area-inset-top))]" />
+      )}
+
+      {locales.length > 1 && (
+        <div
+          className="absolute right-4 top-[max(0.75rem,env(safe-area-inset-top))] rounded-[var(--pt-radius)] p-1"
+          style={
+            t.coverUrl
+              ? { background: "color-mix(in srgb, var(--pt-bg) 80%, transparent)" }
+              : undefined
+          }
+        >
+          {switcher}
+        </div>
+      )}
+
+      <div
+        className={cn(
+          "flex flex-col gap-2 px-5 pb-4",
+          centered ? "items-center text-center" : "items-start text-left",
+          t.coverUrl ? "pt-0" : locales.length > 1 ? "pt-10" : "pt-2",
         )}
-        {children}
+      >
+        {t.logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={t.logoUrl}
+            alt={title ?? ""}
+            className={cn(
+              "w-auto max-w-[70%] object-contain",
+              t.coverUrl && "-mt-10 rounded-[var(--pt-card-radius)] p-2 shadow-lg",
+            )}
+            style={{
+              height: LOGO_HEIGHT[t.logoSize],
+              background: t.coverUrl ? "var(--pt-surface)" : undefined,
+            }}
+          />
+        )}
+        {title && <h1 className="display text-3xl leading-tight">{title}</h1>}
+        {tagline && <p className="max-w-sm text-base opacity-70">{tagline}</p>}
       </div>
-    </div>
+    </header>
   );
 }

@@ -1,9 +1,21 @@
 "use client";
 
-import { Plus, Trash2, ArrowUp, ArrowDown, UtensilsCrossed, GripVertical } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  UtensilsCrossed,
+  GripVertical,
+  Flame,
+  Leaf,
+  Vegan,
+} from "lucide-react";
 import { Button, Card, Field, Input, Select } from "@/components/ui";
 import { LocalizedInput } from "@/components/localized-input";
-import type { MenuContent, MenuItem, MenuSection } from "@/lib/page-content";
+import type { MenuContent, MenuItem, MenuSection, SpiceLevel } from "@/lib/page-content";
+import { cn } from "@/lib/utils";
+import { ImageField } from "./ImageField";
 
 const CURRENCIES = ["CHF", "EUR", "USD"] as const;
 
@@ -229,16 +241,20 @@ export function MenuBuilder({
                       </Field>
                     </div>
 
-                    <Field label="Image URL" hint="Optional">
-                      <Input
-                        type="url"
-                        placeholder="https://…/dish.jpg"
-                        value={item.imageUrl ?? ""}
-                        onChange={(e) =>
-                          updateItem(section.id, item.id, { imageUrl: e.target.value })
-                        }
+                    <Field label="Photo" hint="Optional">
+                      <ImageField
+                        value={item.imageUrl}
+                        onChange={(imageUrl) => updateItem(section.id, item.id, { imageUrl })}
+                        maxSide={1000}
+                        shape="square"
+                        label="Upload dish photo"
                       />
                     </Field>
+
+                    <DietFields
+                      item={item}
+                      onChange={(patch) => updateItem(section.id, item.id, patch)}
+                    />
 
                     <label className="flex items-center justify-between gap-4 pt-1">
                       <span className="text-sm font-semibold text-ink">Available</span>
@@ -287,6 +303,78 @@ export function MenuBuilder({
       >
         <Plus className="size-4" /> Add section
       </Button>
+    </div>
+  );
+}
+
+/** Vegetarian and vegan switches plus a 0 to 3 chili spice level for one dish. */
+function DietFields({
+  item,
+  onChange,
+}: {
+  item: MenuItem;
+  onChange: (patch: Partial<MenuItem>) => void;
+}) {
+  const spicy = item.spicy ?? 0;
+  const chip = (on: boolean) =>
+    cn(
+      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+      on ? "border-transparent text-white" : "border-line text-muted hover:border-ink/30 hover:text-ink",
+    );
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-sm font-semibold text-ink">Dietary</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          aria-pressed={!!item.vegetarian}
+          onClick={() =>
+            // Turning vegetarian off also clears vegan (vegan dishes are vegetarian).
+            onChange(item.vegetarian ? { vegetarian: false, vegan: false } : { vegetarian: true })
+          }
+          className={chip(!!item.vegetarian)}
+          style={item.vegetarian ? { background: "#2f8f4e" } : undefined}
+        >
+          <Leaf className="size-3.5" /> Vegetarian
+        </button>
+        <button
+          type="button"
+          aria-pressed={!!item.vegan}
+          onClick={() =>
+            onChange(item.vegan ? { vegan: false } : { vegan: true, vegetarian: true })
+          }
+          className={chip(!!item.vegan)}
+          style={item.vegan ? { background: "#2f8f4e" } : undefined}
+        >
+          <Vegan className="size-3.5" /> Vegan
+        </button>
+
+        <span className="mx-1 h-5 w-px bg-line" />
+
+        <div className="inline-flex rounded-full bg-ink/5 p-1" role="radiogroup" aria-label="Spice level">
+          {([0, 1, 2, 3] as SpiceLevel[]).map((level) => (
+            <button
+              key={level}
+              type="button"
+              role="radio"
+              aria-checked={spicy === level}
+              title={["Not spicy", "Mild", "Spicy", "Very spicy"][level]}
+              onClick={() => onChange({ spicy: level })}
+              className={cn(
+                "flex h-7 items-center gap-0.5 rounded-full px-2.5 text-xs font-semibold transition",
+                spicy === level ? "bg-white shadow-sm" : "text-muted hover:text-ink",
+              )}
+              style={spicy === level && level > 0 ? { color: "#e0482d" } : undefined}
+            >
+              {level === 0
+                ? "Not spicy"
+                : Array.from({ length: level }, (_, i) => (
+                    <Flame key={i} className="size-3.5 fill-current" />
+                  ))}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

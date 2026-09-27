@@ -12,6 +12,9 @@
   `components/localized-input.tsx`, `components/ui.tsx`, `lib/page-content.ts`, `lib/i18n.ts`
   and `lib/utils.ts` are copied into nfc-card-admin by its `pnpm sync:builders`. Keep them
   free of app-only imports (company context, permissions, API) so the copy still builds.
+  Host pages render `builders/PageWorkspace` and pass in what is host-specific:
+  `canEdit` from their own permission check and a `translate` function for their own
+  endpoint (app: `/companies/:id/translate`, admin: `/admin/companies/:id/pages/:pageId/translate`).
 - **Public pages** are mobile-first, `tap-safe`, and themable via `page.theme`.
   Customer-facing content is multilingual (`LocalizedText`, `pickLocalized`).
 - **Copy:** never use the em dash character in user-facing text. Use a period or

@@ -10,11 +10,13 @@ import { api } from "@/lib/api";
 import { useCompanyId } from "@/lib/company";
 import { usePermissions } from "@/lib/permissions";
 import type { Page, PageContent, PageTheme } from "@/lib/types";
+import type { LocalizedText } from "@/lib/page-content";
 import { Badge, Button, Card, Input, Spinner } from "@/components/ui";
 import { ConfirmDialog } from "@/components/modal";
 import { ViewOnlyNotice } from "@/components/gate";
-import { PageContentEditor, seedContent } from "@/components/builders/PageContentEditor";
-import { PagePreview } from "@/components/builders/PagePreview";
+import { seedContent } from "@/components/builders/PageContentEditor";
+import { PageWorkspace } from "@/components/builders/PageWorkspace";
+import type { BuilderServices, DesignTemplate } from "@/components/builders/host";
 
 export default function PageEditor() {
   const { pageId } = useParams<{ pageId: string }>();
@@ -36,6 +38,33 @@ export default function PageEditor() {
   const [seeded, setSeeded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // What the shared builders call. Roles and the monthly translation limit are
+  // enforced by these endpoints.
+  const services = useMemo<BuilderServices>(() => {
+    const templatesPath = `/companies/${companyId}/design-templates`;
+    return {
+      translate: (text, from, to) =>
+        api
+          .post<{ translations: LocalizedText }>(`/companies/${companyId}/translate`, {
+            pageId,
+            text,
+            from,
+            to,
+          })
+          .then((res) => res.translations),
+      uploadImage: (file) =>
+        api.upload<{ url: string }>(`/companies/${companyId}/uploads`, file).then((r) => r.url),
+      templates: {
+        queryKey: ["design-templates", companyId],
+        list: () => api.get<DesignTemplate[]>(templatesPath),
+        create: (templateName, templateTheme) =>
+          api.post<DesignTemplate>(templatesPath, { name: templateName, theme: templateTheme }),
+        update: (id, patch) => api.patch<DesignTemplate>(`${templatesPath}/${id}`, patch),
+        remove: (id) => api.delete<void>(`${templatesPath}/${id}`),
+      },
+    };
+  }, [companyId, pageId]);
 
   // Seed the draft once the page arrives.
   useEffect(() => {
@@ -212,24 +241,16 @@ export default function PageEditor() {
         </div>
       </Card>
 
-      {/* Two columns */}
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto]">
-        {/* A disabled fieldset turns every builder control read-only for MEMBERs. */}
-        <fieldset disabled={!canManage} className="flex min-w-0 flex-col gap-6">
-          <PageContentEditor
-            kind={page.kind}
-            content={content}
-            onContentChange={setContent}
-            theme={theme}
-            onThemeChange={setTheme}
-          />
-        </fieldset>
-
-        {/* Preview */}
-        <div className="lg:sticky lg:top-6 lg:h-fit">
-          <PagePreview kind={page.kind} content={content} theme={theme} />
-        </div>
-      </div>
+      <PageWorkspace
+        kind={page.kind}
+        name={name || page.name}
+        content={content}
+        onContentChange={setContent}
+        theme={theme}
+        onThemeChange={setTheme}
+        canEdit={canManage}
+        services={services}
+      />
 
       <ConfirmDialog
         open={confirmDelete}

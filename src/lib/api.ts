@@ -28,11 +28,17 @@ async function request<T>(
   path: string,
   opts: { body?: unknown; query?: Query } = {},
 ): Promise<T> {
+  // Files go up as raw bytes with their own type; everything else as JSON.
+  const isFile = opts.body instanceof Blob;
   const res = await fetch(buildUrl(path, opts.query), {
     method,
     credentials: "include",
-    headers: opts.body ? { "Content-Type": "application/json" } : undefined,
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
+    headers: isFile
+      ? { "Content-Type": (opts.body as Blob).type || "application/octet-stream" }
+      : opts.body
+        ? { "Content-Type": "application/json" }
+        : undefined,
+    body: isFile ? (opts.body as Blob) : opts.body ? JSON.stringify(opts.body) : undefined,
   });
 
   if (res.status === 204) return undefined as T;
@@ -58,4 +64,6 @@ export const api = {
   put: <T>(path: string, body?: unknown, query?: Query) =>
     request<T>("PUT", path, { body, query }),
   delete: <T>(path: string, body?: unknown) => request<T>("DELETE", path, { body }),
+  /** POST a file as its raw bytes (the upload endpoints read the body directly). */
+  upload: <T>(path: string, file: Blob) => request<T>("POST", path, { body: file }),
 };

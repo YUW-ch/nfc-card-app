@@ -12,11 +12,56 @@ export type LocalizedText = Partial<Record<Locale, string>>;
 
 export type PageKind = "REVIEW" | "MENU" | "LINKHUB" | "VCARD" | "WIFI";
 
+/** A heading or body typeface from the curated catalogue in `page-theme.ts`. */
+export type FontId =
+  | "bricolage"
+  | "hanken"
+  | "inter"
+  | "poppins"
+  | "montserrat"
+  | "space-grotesk"
+  | "oswald"
+  | "playfair"
+  | "lora"
+  | "cormorant"
+  | "dm-serif"
+  | "josefin"
+  | "pacifico"
+  | "caveat";
+
+export type CornerStyle = "pill" | "rounded" | "square";
+export type LogoSize = "sm" | "md" | "lg";
+export type HeaderAlign = "center" | "left";
+
+/**
+ * A page's visual identity. Every field is optional; `resolveTheme` in
+ * `page-theme.ts` fills the defaults. Design templates store this same shape.
+ */
 export interface PageTheme {
+  /** Accent: buttons, prices, active tabs. */
   brandColor?: string;
+  /** Page background colour. */
   background?: string;
   textColor?: string;
+  /** Cards and panels on top of the background. */
+  surfaceColor?: string;
+
   logoUrl?: string;
+  logoSize?: LogoSize;
+  /** Wide photo across the top of the page. */
+  coverUrl?: string;
+  /** Shown in the header instead of the internal page name. */
+  title?: LocalizedText;
+  tagline?: LocalizedText;
+  /** Hide the title when the logo already carries the name. Default true. */
+  showTitle?: boolean;
+  headerAlign?: HeaderAlign;
+
+  headingFont?: FontId;
+  bodyFont?: FontId;
+  corners?: CornerStyle;
+
+  /** @deprecated Unused, kept so older stored themes still type-check. */
   cardStyle?: string;
 }
 
@@ -40,7 +85,13 @@ export interface MenuItem {
   tags?: string[];
   imageUrl?: string;
   available?: boolean;
+  vegan?: boolean;
+  vegetarian?: boolean;
+  /** Chili heat, 0 (not spicy) to 3 (very hot). */
+  spicy?: SpiceLevel;
 }
+
+export type SpiceLevel = 0 | 1 | 2 | 3;
 
 export interface MenuSection {
   id: string;
