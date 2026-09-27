@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Input, Textarea } from "./ui";
 import { LOCALE_LABELS } from "@/lib/i18n";
-import { LOCALES, type Locale, type LocalizedText } from "@/lib/types";
+import { LOCALES, type Locale, type LocalizedText } from "@/lib/page-content";
 import { cn } from "@/lib/utils";
 
 /**

@@ -5,9 +5,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MapPin, Pencil, Plus, Trash2 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useCompanyId } from "@/lib/company";
+import { formatPlanNames, usePermissions } from "@/lib/permissions";
 import type { Location } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { Modal, ConfirmDialog } from "@/components/modal";
+import { UpgradeNotice, ViewOnlyNotice } from "@/components/gate";
 import { Badge, Button, Card, EmptyState, Field, Input, Select, Spinner } from "@/components/ui";
 
 interface LocationForm {
@@ -58,6 +60,7 @@ function toPayload(form: LocationForm) {
 
 export default function LocationsPage() {
   const companyId = useCompanyId();
+  const { canManage, canAddLocation, features, planName, plansWithLocations } = usePermissions();
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Location | null>(null);
   const [deleting, setDeleting] = useState<Location | null>(null);
@@ -80,6 +83,9 @@ export default function LocationsPage() {
   });
 
   const locations = locationsQuery.data ?? [];
+  const canAdd = canManage && canAddLocation(locations.length);
+  const upgradePlans = plansWithLocations(locations.length + 1);
+  const maxLocations = features?.multiLocation ? features.maxLocations : 1;
 
   return (
     <div>
@@ -88,12 +94,29 @@ export default function LocationsPage() {
         title="Locations"
         description="The physical places your cards live. The default location is used when none is set."
         actions={
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="size-4" />
-            New location
-          </Button>
+          canAdd && (
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="size-4" />
+              New location
+            </Button>
+          )
         }
       />
+
+      {!canManage && <ViewOnlyNotice className="mb-6" />}
+      {canManage && !canAdd && !locationsQuery.isLoading && (
+        <UpgradeNotice
+          className="mb-6"
+          title={`Your ${planName ? `${planName} ` : ""}plan includes ${
+            maxLocations === 1 ? "a single location" : `up to ${maxLocations} locations`
+          }`}
+          description={
+            upgradePlans.length > 0
+              ? `Upgrade to ${formatPlanNames(upgradePlans)} to add more. Contact us at hello@taplino.ch.`
+              : "Contact us at hello@taplino.ch to add more."
+          }
+        />
+      )}
 
       {locationsQuery.isLoading ? (
         <div className="flex justify-center py-20">
@@ -103,12 +126,18 @@ export default function LocationsPage() {
         <EmptyState
           icon={<MapPin className="size-10" />}
           title="No locations yet"
-          description="Add your first location to group cards and connect Google reviews."
+          description={
+            canManage
+              ? "Add your first location to group cards and connect Google reviews."
+              : "No locations have been added to this business yet."
+          }
           action={
-            <Button onClick={() => setCreating(true)}>
-              <Plus className="size-4" />
-              New location
-            </Button>
+            canAdd && (
+              <Button onClick={() => setCreating(true)}>
+                <Plus className="size-4" />
+                New location
+              </Button>
+            )
           }
         />
       ) : (
@@ -129,24 +158,26 @@ export default function LocationsPage() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setEditing(loc)}
-                    className="rounded-full p-2 text-muted transition hover:bg-ink/5 hover:text-ink"
-                    aria-label="Edit location"
-                  >
-                    <Pencil className="size-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleting(loc)}
-                    className="rounded-full p-2 text-muted transition hover:bg-ink/5 hover:text-negative"
-                    aria-label="Delete location"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
-                </div>
+                {canManage && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(loc)}
+                      className="rounded-full p-2 text-muted transition hover:bg-ink/5 hover:text-ink"
+                      aria-label="Edit location"
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleting(loc)}
+                      className="rounded-full p-2 text-muted transition hover:bg-ink/5 hover:text-negative"
+                      aria-label="Delete location"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="border-t border-line pt-3 text-sm text-muted">
                 {[loc.address, [loc.postalCode, loc.city].filter(Boolean).join(" "), loc.country]

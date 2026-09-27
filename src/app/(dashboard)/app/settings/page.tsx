@@ -5,29 +5,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useCompany, useCompanyId } from "@/lib/company";
-import type { Company, Locale, PlanFeatures } from "@/lib/types";
+import { usePermissions } from "@/lib/permissions";
+import type { BillingResponse, Company, Locale, PlanFeatures, SubscriptionPlan } from "@/lib/types";
 import { formatChf } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
 import { Button, Card, Field, Input, Select, Spinner } from "@/components/ui";
+import { ViewOnlyNotice } from "@/components/gate";
 import { cn } from "@/lib/utils";
 
 interface CompanySettings {
   analyticsEnabled: boolean;
   defaultLocale: Locale;
-}
-
-interface Plan {
-  id: string;
-  name: string;
-  tier: string;
-  priceCents: number;
-  interval?: string;
-  features?: string[];
-}
-
-interface BillingResponse {
-  subscription: { status?: string; tier?: string } | null;
-  features: PlanFeatures;
 }
 
 const LOCALES: { value: Locale; label: string }[] = [
@@ -39,6 +27,7 @@ const LOCALES: { value: Locale; label: string }[] = [
 
 export default function SettingsPage() {
   const companyId = useCompanyId();
+  const { canManage } = usePermissions();
 
   return (
     <div>
@@ -48,8 +37,9 @@ export default function SettingsPage() {
         description="Manage your business profile, preferences, and plan."
       />
       <div className="space-y-6">
-        <BusinessProfile companyId={companyId} />
-        <Preferences companyId={companyId} />
+        {!canManage && <ViewOnlyNotice />}
+        <BusinessProfile companyId={companyId} canManage={canManage} />
+        <Preferences companyId={companyId} canManage={canManage} />
         <PlanBilling companyId={companyId} />
       </div>
     </div>
@@ -58,7 +48,7 @@ export default function SettingsPage() {
 
 // ─── Business profile ────────────────────────────────────────────────────────
 
-function BusinessProfile({ companyId }: { companyId: string }) {
+function BusinessProfile({ companyId, canManage }: { companyId: string; canManage: boolean }) {
   const { company, refetch } = useCompany();
   const queryClient = useQueryClient();
 
@@ -109,57 +99,61 @@ function BusinessProfile({ companyId }: { companyId: string }) {
         <h2 className="display text-xl text-ink">Business profile</h2>
         <p className="mt-1 text-sm text-muted">The name and brand shown on your public pages.</p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Business name">
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
-        </Field>
-        <Field label="Slug" hint="Used in your public URLs.">
-          <Input
-            value={slug}
-            onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
-          />
-        </Field>
-      </div>
-      <Field label="Brand color">
-        <div className="flex items-center gap-3">
-          <input
-            type="color"
-            value={brandColor}
-            onChange={(e) => setBrandColor(e.target.value)}
-            className="size-11 cursor-pointer rounded-2xl border border-line bg-white p-1"
-            aria-label="Brand color"
-          />
-          <Input
-            value={brandColor}
-            onChange={(e) => setBrandColor(e.target.value)}
-            className="w-40 font-mono"
-          />
+      <fieldset disabled={!canManage} className="min-w-0 space-y-5">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Business name">
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
+          <Field label="Slug" hint="Used in your public URLs.">
+            <Input
+              value={slug}
+              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
+            />
+          </Field>
         </div>
-      </Field>
-      <Field label="Logo URL" hint="A square PNG or SVG works best.">
-        <Input
-          value={logo}
-          onChange={(e) => setLogo(e.target.value)}
-          placeholder="https://..."
-        />
-      </Field>
+        <Field label="Brand color">
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              value={brandColor}
+              onChange={(e) => setBrandColor(e.target.value)}
+              className="size-11 cursor-pointer rounded-2xl border border-line bg-white p-1"
+              aria-label="Brand color"
+            />
+            <Input
+              value={brandColor}
+              onChange={(e) => setBrandColor(e.target.value)}
+              className="w-40 font-mono"
+            />
+          </div>
+        </Field>
+        <Field label="Logo URL" hint="A square PNG or SVG works best.">
+          <Input
+            value={logo}
+            onChange={(e) => setLogo(e.target.value)}
+            placeholder="https://..."
+          />
+        </Field>
+      </fieldset>
       {error && <p className="text-sm text-negative">{error}</p>}
-      <div className="flex items-center gap-3">
-        <Button loading={save.isPending} disabled={!name.trim()} onClick={() => {
-          setError(null);
-          save.mutate();
-        }}>
-          Save profile
-        </Button>
-        {saved && <span className="text-sm font-medium text-positive">Saved</span>}
-      </div>
+      {canManage && (
+        <div className="flex items-center gap-3">
+          <Button loading={save.isPending} disabled={!name.trim()} onClick={() => {
+            setError(null);
+            save.mutate();
+          }}>
+            Save profile
+          </Button>
+          {saved && <span className="text-sm font-medium text-positive">Saved</span>}
+        </div>
+      )}
     </Card>
   );
 }
 
 // ─── Preferences ─────────────────────────────────────────────────────────────
 
-function Preferences({ companyId }: { companyId: string }) {
+function Preferences({ companyId, canManage }: { companyId: string; canManage: boolean }) {
   const queryClient = useQueryClient();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -206,53 +200,57 @@ function Preferences({ companyId }: { companyId: string }) {
         </div>
       ) : (
         <>
-          <label className="flex items-center justify-between gap-4">
-            <span>
-              <span className="block font-semibold text-ink">Analytics</span>
-              <span className="block text-sm text-muted">Collect tap analytics for your cards.</span>
-            </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={analyticsEnabled}
-              onClick={() => setAnalyticsEnabled((v) => !v)}
-              className={cn(
-                "relative h-7 w-12 shrink-0 rounded-full transition",
-                analyticsEnabled ? "bg-accent" : "bg-ink/15",
-              )}
-            >
-              <span
+          <fieldset disabled={!canManage} className="min-w-0 space-y-5">
+            <label className="flex items-center justify-between gap-4">
+              <span>
+                <span className="block font-semibold text-ink">Analytics</span>
+                <span className="block text-sm text-muted">Collect tap analytics for your cards.</span>
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={analyticsEnabled}
+                onClick={() => setAnalyticsEnabled((v) => !v)}
                 className={cn(
-                  "absolute top-1 size-5 rounded-full bg-white transition-all",
-                  analyticsEnabled ? "left-6" : "left-1",
+                  "relative h-7 w-12 shrink-0 rounded-full transition",
+                  analyticsEnabled ? "bg-accent" : "bg-ink/15",
                 )}
-              />
-            </button>
-          </label>
+              >
+                <span
+                  className={cn(
+                    "absolute top-1 size-5 rounded-full bg-white transition-all",
+                    analyticsEnabled ? "left-6" : "left-1",
+                  )}
+                />
+              </button>
+            </label>
 
-          <Field label="Default language">
-            <Select
-              value={defaultLocale}
-              onChange={(e) => setDefaultLocale(e.target.value as Locale)}
-            >
-              {LOCALES.map((l) => (
-                <option key={l.value} value={l.value}>
-                  {l.label}
-                </option>
-              ))}
-            </Select>
-          </Field>
+            <Field label="Default language">
+              <Select
+                value={defaultLocale}
+                onChange={(e) => setDefaultLocale(e.target.value as Locale)}
+              >
+                {LOCALES.map((l) => (
+                  <option key={l.value} value={l.value}>
+                    {l.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </fieldset>
 
           {error && <p className="text-sm text-negative">{error}</p>}
-          <div className="flex items-center gap-3">
-            <Button loading={save.isPending} onClick={() => {
-              setError(null);
-              save.mutate();
-            }}>
-              Save preferences
-            </Button>
-            {saved && <span className="text-sm font-medium text-positive">Saved</span>}
-          </div>
+          {canManage && (
+            <div className="flex items-center gap-3">
+              <Button loading={save.isPending} onClick={() => {
+                setError(null);
+                save.mutate();
+              }}>
+                Save preferences
+              </Button>
+              {saved && <span className="text-sm font-medium text-positive">Saved</span>}
+            </div>
+          )}
         </>
       )}
     </Card>
@@ -261,12 +259,29 @@ function Preferences({ companyId }: { companyId: string }) {
 
 // ─── Plan & billing ──────────────────────────────────────────────────────────
 
-const FEATURE_LABELS: { key: keyof PlanFeatures; label: string }[] = [
+const FEATURE_LABELS: { key: Exclude<keyof PlanFeatures, "tier" | "maxLocations">; label: string }[] = [
+  { key: "createPages", label: "Create your own pages" },
   { key: "analytics", label: "Tap analytics" },
   { key: "multiLocation", label: "Multiple locations" },
   { key: "unlimitedDestinationChanges", label: "Unlimited destination changes" },
   { key: "managed", label: "Managed setup" },
 ];
+
+const INTERVAL_LABELS: Record<string, string> = {
+  MONTHLY: "/ month",
+  YEARLY: "/ year",
+  ONE_TIME: "one-time",
+};
+
+/** Mirrors the defaults in the backend's `BillingService.resolveFeatures`. */
+function planFeatureLabels(plan: SubscriptionPlan) {
+  const f = plan.features ?? {};
+  const max = !f.multiLocation ? 1 : f.maxLocations === undefined ? 1 : f.maxLocations;
+  return [
+    ...FEATURE_LABELS.filter(({ key }) => Boolean(f[key])).map(({ label }) => label),
+    max === null ? "Unlimited locations" : `Up to ${max} location${max === 1 ? "" : "s"}`,
+  ];
+}
 
 function PlanBilling({ companyId }: { companyId: string }) {
   const billingQuery = useQuery({
@@ -276,7 +291,7 @@ function PlanBilling({ companyId }: { companyId: string }) {
 
   const plansQuery = useQuery({
     queryKey: ["billing-plans"],
-    queryFn: () => api.get<Plan[]>(`/billing/plans`),
+    queryFn: () => api.get<SubscriptionPlan[]>(`/billing/plans`),
   });
 
   const features = billingQuery.data?.features;
@@ -351,20 +366,22 @@ function PlanBilling({ companyId }: { companyId: string }) {
                   </div>
                   <p className="display mt-2 text-2xl text-ink">
                     {formatChf(plan.priceCents)}
-                    {plan.interval && (
-                      <span className="text-sm font-normal text-muted"> / {plan.interval}</span>
+                    {INTERVAL_LABELS[plan.interval] && (
+                      <span className="text-sm font-normal text-muted">
+                        {" "}
+                        {INTERVAL_LABELS[plan.interval]}
+                        {plan.tier === "STARTER" && " per card"}
+                      </span>
                     )}
                   </p>
-                  {plan.features && plan.features.length > 0 && (
-                    <ul className="mt-4 space-y-1.5 text-sm text-muted">
-                      {plan.features.map((f) => (
-                        <li key={f} className="flex items-start gap-2">
-                          <Check className="mt-0.5 size-4 shrink-0 text-positive" />
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <ul className="mt-4 space-y-1.5 text-sm text-muted">
+                    {planFeatureLabels(plan).map((label) => (
+                      <li key={label} className="flex items-start gap-2">
+                        <Check className="mt-0.5 size-4 shrink-0 text-positive" />
+                        {label}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               );
             })}

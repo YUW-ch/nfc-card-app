@@ -3,7 +3,7 @@
 import { Plus, Trash2, ArrowUp, ArrowDown, Link2, Share2, User } from "lucide-react";
 import { Button, Card, Field, Input, Select } from "@/components/ui";
 import { LocalizedInput } from "@/components/localized-input";
-import type { LinkHubContent, LinkHubLink } from "@/lib/types";
+import type { LinkHubContent, LinkHubLink } from "@/lib/page-content";
 
 const SOCIAL_PLATFORMS = ["instagram", "tiktok", "facebook", "x", "youtube", "website"] as const;
 

@@ -5,9 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import { CreditCard, LayoutTemplate, MapPin, MousePointerClick, Plus } from "lucide-react";
 import { api } from "@/lib/api";
 import { useCompany } from "@/lib/company";
+import { usePermissions } from "@/lib/permissions";
 import type { Card as CardType, PageSummary, Location, AnalyticsSummary } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { Button, Card, Spinner } from "@/components/ui";
+import { ClaimableOrdersBanner } from "@/components/claimable-orders";
 
 interface StatDef {
   label: string;
@@ -40,6 +42,8 @@ function StatCard({ stat, loading }: { stat: StatDef; loading: boolean }) {
 
 export default function OverviewPage() {
   const { company, companyId } = useCompany();
+  const { canManage, can, planLoading } = usePermissions();
+  const analyticsOn = can("analytics");
 
   const cardsQuery = useQuery({
     queryKey: ["cards", companyId],
@@ -59,7 +63,7 @@ export default function OverviewPage() {
   const analyticsQuery = useQuery({
     queryKey: ["analytics-summary", companyId],
     queryFn: () => api.get<AnalyticsSummary>(`/companies/${companyId}/analytics/summary`),
-    enabled: Boolean(companyId),
+    enabled: Boolean(companyId) && analyticsOn,
   });
 
   const cards = cardsQuery.data ?? [];
@@ -96,11 +100,11 @@ export default function OverviewPage() {
     {
       def: {
         label: "Taps",
-        value: analyticsQuery.data?.totals.taps ?? 0,
-        hint: "Last 30 days",
+        value: analyticsOn ? (analyticsQuery.data?.totals.taps ?? 0) : "Pro",
+        hint: analyticsOn ? "Last 30 days" : "Not in your plan",
         icon: MousePointerClick,
       },
-      loading: analyticsQuery.isLoading,
+      loading: planLoading || analyticsQuery.isLoading,
     },
   ];
 
@@ -115,29 +119,35 @@ export default function OverviewPage() {
         description="A quick pulse on your cards, pages, and taps."
       />
 
+      <ClaimableOrdersBanner className="mb-6" />
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
           <StatCard key={s.def.label} stat={s.def} loading={s.loading} />
         ))}
       </div>
 
-      <div className="mt-8">
-        <h2 className="display text-lg text-ink">Quick actions</h2>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link href="/app/cards">
-            <Button>
-              <Plus className="size-4" />
-              Create card
-            </Button>
-          </Link>
-          <Link href="/app/pages">
-            <Button variant="outline">
-              <LayoutTemplate className="size-4" />
-              Build a page
-            </Button>
-          </Link>
+      {canManage && (
+        <div className="mt-8">
+          <h2 className="display text-lg text-ink">Quick actions</h2>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link href="/app/cards">
+              <Button>
+                <Plus className="size-4" />
+                Create card
+              </Button>
+            </Link>
+            {can("createPages") && (
+              <Link href="/app/pages">
+                <Button variant="outline">
+                  <LayoutTemplate className="size-4" />
+                  Build a page
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -16,10 +16,12 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useCompanyId } from "@/lib/company";
+import { formatPlanNames, usePermissions } from "@/lib/permissions";
 import type { Page, PageKind, PageSummary } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { Badge, Button, Card, EmptyState, Field, Input, Spinner } from "@/components/ui";
 import { Modal } from "@/components/modal";
+import { UpgradeNotice, ViewOnlyNotice } from "@/components/gate";
 
 const KINDS: {
   kind: PageKind;
@@ -44,6 +46,9 @@ const KIND_META: Record<PageKind, { name: string; icon: typeof Star }> = {
 
 export default function PagesPage() {
   const companyId = useCompanyId();
+  const { canManage, can, planLoading, planName, plansWith } = usePermissions();
+  const canCreate = canManage && can("createPages");
+  const upgradePlans = plansWith("createPages");
   const router = useRouter();
   const qc = useQueryClient();
 
@@ -88,11 +93,30 @@ export default function PagesPage() {
         title="Pages"
         description="Build the pages your NFC cards point to."
         actions={
-          <Button onClick={openCreate}>
-            <Plus className="size-4" /> New page
-          </Button>
+          canCreate && (
+            <Button onClick={openCreate}>
+              <Plus className="size-4" /> New page
+            </Button>
+          )
         }
       />
+
+      {!canManage && <ViewOnlyNotice className="mb-6" />}
+      {canManage && !canCreate && !planLoading && (
+        <UpgradeNotice
+          className="mb-6"
+          title={
+            planName
+              ? `Your ${planName} plan does not include creating pages`
+              : "Creating pages is not in your plan"
+          }
+          description={
+            upgradePlans.length > 0
+              ? `We set up your pages for you. Upgrade to ${formatPlanNames(upgradePlans)} to build your own, or contact us at hello@taplino.ch.`
+              : "We set up your pages for you. Contact us at hello@taplino.ch if you want to build your own."
+          }
+        />
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-20">
@@ -102,11 +126,17 @@ export default function PagesPage() {
         <EmptyState
           icon={<LayoutGrid className="size-8" />}
           title="No pages yet"
-          description="Create your first page and connect it to a card."
+          description={
+            canCreate
+              ? "Create your first page and connect it to a card."
+              : "No pages have been built for this business yet."
+          }
           action={
-            <Button onClick={openCreate}>
-              <Plus className="size-4" /> New page
-            </Button>
+            canCreate && (
+              <Button onClick={openCreate}>
+                <Plus className="size-4" /> New page
+              </Button>
+            )
           }
         />
       ) : (

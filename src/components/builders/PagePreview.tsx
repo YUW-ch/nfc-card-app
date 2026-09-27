@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Star, Wifi, Phone, Mail, Globe, MapPin, User } from "lucide-react";
 import { pickLocalized } from "@/lib/i18n";
-import { LOCALES, type Locale } from "@/lib/types";
+import { LOCALES, type Locale } from "@/lib/page-content";
 import type {
   LinkHubContent,
   MenuContent,
@@ -13,7 +13,7 @@ import type {
   ReviewContent,
   VCardContent,
   WifiContent,
-} from "@/lib/types";
+} from "@/lib/page-content";
 import { formatChf } from "@/lib/utils";
 
 const DEFAULT_BRAND = "#f0431f";

@@ -75,6 +75,23 @@ body {
   font-size: 0.72rem;
 }
 
+/* Used by the card designer synced from the website (pnpm sync:editor) */
+.section-pad {
+  padding-left: max(1.5rem, calc((100vw - 1200px) / 2));
+  padding-right: max(1.5rem, calc((100vw - 1200px) / 2));
+}
+
+.link-underline {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1.5px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.4s var(--ease-out-expo);
+}
+.link-underline:hover {
+  background-size: 100% 1.5px;
+}
+
 /* Native-feeling scroll + tap on iOS for the public pages ---------- */
 .tap-safe {
   -webkit-tap-highlight-color: transparent;

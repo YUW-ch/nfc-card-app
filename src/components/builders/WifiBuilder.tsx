@@ -2,7 +2,7 @@
 
 import { Wifi, Smartphone } from "lucide-react";
 import { Card, Field, Input, Select } from "@/components/ui";
-import type { WifiContent } from "@/lib/types";
+import type { WifiContent } from "@/lib/page-content";
 
 export function emptyWifiContent(): WifiContent {
   return { ssid: "", password: "", encryption: "WPA", hidden: false };

@@ -3,7 +3,7 @@
 import { Plus, Trash2, ArrowUp, ArrowDown, UtensilsCrossed, GripVertical } from "lucide-react";
 import { Button, Card, Field, Input, Select } from "@/components/ui";
 import { LocalizedInput } from "@/components/localized-input";
-import type { MenuContent, MenuItem, MenuSection } from "@/lib/types";
+import type { MenuContent, MenuItem, MenuSection } from "@/lib/page-content";
 
 const CURRENCIES = ["CHF", "EUR", "USD"] as const;
 

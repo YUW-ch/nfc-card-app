@@ -1,4 +1,4 @@
-import type { Locale, LocalizedText } from "./types";
+import type { Locale, LocalizedText } from "./page-content";
 
 export const LOCALE_LABELS: Record<Locale, string> = {
   de: "Deutsch",

@@ -2,7 +2,7 @@
 
 import { Plus, Trash2, User, Phone, Mail, Share2 } from "lucide-react";
 import { Button, Card, Field, Input, Select } from "@/components/ui";
-import type { VCardContent } from "@/lib/types";
+import type { VCardContent } from "@/lib/page-content";
 
 const SOCIAL_PLATFORMS = ["instagram", "tiktok", "facebook", "x", "youtube", "website"] as const;
 

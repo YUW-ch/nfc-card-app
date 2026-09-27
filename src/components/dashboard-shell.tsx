@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   CreditCard,
+  Package,
   LayoutTemplate,
   MapPin,
   BarChart3,
@@ -16,24 +17,29 @@ import {
   ChevronDown,
   Check,
   LogOut,
+  Lock,
   type LucideIcon,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useCompany } from "@/lib/company";
+import { usePermissions } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  /** Plan feature this page needs. A lock shows when the plan lacks it. */
+  feature?: "analytics";
 }
 
 const NAV: NavItem[] = [
   { label: "Overview", href: "/app", icon: LayoutDashboard },
   { label: "Cards", href: "/app/cards", icon: CreditCard },
+  { label: "Orders", href: "/app/orders", icon: Package },
   { label: "Pages", href: "/app/pages", icon: LayoutTemplate },
   { label: "Locations", href: "/app/locations", icon: MapPin },
-  { label: "Analytics", href: "/app/analytics", icon: BarChart3 },
+  { label: "Analytics", href: "/app/analytics", icon: BarChart3, feature: "analytics" },
   { label: "Team", href: "/app/team", icon: Users },
   { label: "Settings", href: "/app/settings", icon: Settings },
 ];
@@ -53,11 +59,13 @@ function isActive(pathname: string, href: string) {
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { can, planLoading } = usePermissions();
   return (
     <nav className="flex flex-col gap-1">
       {NAV.map((item) => {
         const active = isActive(pathname, item.href);
         const Icon = item.icon;
+        const locked = Boolean(item.feature) && !planLoading && !can(item.feature!);
         return (
           <Link
             key={item.href}
@@ -72,6 +80,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           >
             <Icon className="size-4.5 shrink-0" />
             {item.label}
+            {locked && <Lock className="ml-auto size-3.5 text-muted" aria-label="Not in your plan" />}
           </Link>
         );
       })}

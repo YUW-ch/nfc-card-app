@@ -14,20 +14,40 @@ function Wordmark() {
   );
 }
 
-// Dev-only convenience: prefill the form from .env.local so local sign-in is one click.
+// Dev-only convenience: prefill the form with the backend's seeded dev user
+// (nfc-card-backend `pnpm db:seed:dev`), overridable via .env.local.
 // Gated on NODE_ENV so the values are stripped from production bundles.
 const DEV_EMAIL =
-  process.env.NODE_ENV === "development" ? (process.env.NEXT_PUBLIC_DEV_LOGIN_EMAIL ?? "") : "";
+  process.env.NODE_ENV === "development"
+    ? (process.env.NEXT_PUBLIC_DEV_LOGIN_EMAIL ?? "dev@taplino.ch")
+    : "";
 const DEV_PASSWORD =
-  process.env.NODE_ENV === "development" ? (process.env.NEXT_PUBLIC_DEV_LOGIN_PASSWORD ?? "") : "";
+  process.env.NODE_ENV === "development"
+    ? (process.env.NEXT_PUBLIC_DEV_LOGIN_PASSWORD ?? "taplino-dev")
+    : "";
+
+// Dev-only: one seeded account per plan (nfc-card-backend `pnpm db:seed:dev`).
+// Empty outside `next dev`, so neither the emails nor the password ship.
+const DEV_ACCOUNTS =
+  process.env.NODE_ENV === "development"
+    ? [
+        { email: "dev@taplino.ch", label: "Dev", hint: "Starter, also super admin" },
+        { email: "starter@taplino.ch", label: "Starter", hint: "Café Starter" },
+        { email: "pro@taplino.ch", label: "Pro", hint: "Bistro Pro" },
+        { email: "managed@taplino.ch", label: "Managed", hint: "Hotel Managed" },
+      ].map((a) => ({ ...a, password: "taplino-dev" }))
+    : [];
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const verified = params.get("verified") === "true";
+  // Carried through from a shop order email via register and verify-email.
+  const prefillEmail = params.get("email");
+  const order = params.get("order");
 
-  const [email, setEmail] = useState(DEV_EMAIL);
-  const [password, setPassword] = useState(DEV_PASSWORD);
+  const [email, setEmail] = useState(prefillEmail ?? DEV_EMAIL);
+  const [password, setPassword] = useState(prefillEmail ? "" : DEV_PASSWORD);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -52,6 +72,13 @@ function LoginForm() {
       {verified && (
         <div className="mt-5 rounded-2xl bg-positive/10 px-4 py-3 text-sm text-positive">
           Email verified, please sign in.
+        </div>
+      )}
+
+      {order && (
+        <div className="mt-3 rounded-2xl bg-accent-soft px-4 py-3 text-sm text-ink">
+          Your order <span className="font-semibold">{order}</span> will be linked to this account
+          once you create your business.
         </div>
       )}
 
@@ -84,6 +111,17 @@ function LoginForm() {
         </Button>
       </form>
 
+      {DEV_ACCOUNTS.length > 0 && (
+        <DevAccounts
+          current={email}
+          onPick={(account) => {
+            setEmail(account.email);
+            setPassword(account.password);
+            setError(null);
+          }}
+        />
+      )}
+
       <div className="mt-5 flex items-center justify-between text-sm">
         <Link href="/forgot-password" className="text-muted hover:text-accent">
           Forgot password?
@@ -96,6 +134,35 @@ function LoginForm() {
         </span>
       </div>
     </Card>
+  );
+}
+
+function DevAccounts({
+  current,
+  onPick,
+}: {
+  current: string;
+  onPick: (account: (typeof DEV_ACCOUNTS)[number]) => void;
+}) {
+  return (
+    <div className="mt-6 rounded-2xl border border-dashed border-line p-3">
+      <p className="eyebrow px-1 text-muted">Dev accounts</p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {DEV_ACCOUNTS.map((a) => (
+          <button
+            key={a.email}
+            type="button"
+            onClick={() => onPick(a)}
+            className={`rounded-xl border px-3 py-2 text-left transition hover:border-accent ${
+              current === a.email ? "border-accent bg-accent-soft/60" : "border-line bg-white"
+            }`}
+          >
+            <span className="block text-sm font-semibold text-ink">{a.label}</span>
+            <span className="block truncate text-xs text-muted">{a.hint}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

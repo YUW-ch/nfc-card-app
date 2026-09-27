@@ -5,10 +5,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link2, Menu as MenuIcon, Plus, QrCode, Star, User, Wifi } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useCompanyId } from "@/lib/company";
+import { usePermissions } from "@/lib/permissions";
 import type { Card as CardModel, CardStatus, CardType, Location, PageSummary } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { Modal, ConfirmDialog } from "@/components/modal";
 import { CardQR } from "@/components/card-qr";
+import { ViewOnlyNotice } from "@/components/gate";
 import { Badge, Button, EmptyState, Field, Input, Select, Spinner } from "@/components/ui";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "";
@@ -43,6 +45,7 @@ const STATUS_LABEL: Record<CardStatus, string> = {
 
 export default function CardsPage() {
   const companyId = useCompanyId();
+  const { canManage } = usePermissions();
   const [creating, setCreating] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -66,12 +69,16 @@ export default function CardsPage() {
         title="Cards"
         description="Every NFC card you own, its status, and where a tap sends people."
         actions={
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="size-4" />
-            New card
-          </Button>
+          canManage && (
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="size-4" />
+              New card
+            </Button>
+          )
         }
       />
+
+      {!canManage && <ViewOnlyNotice className="mb-6" />}
 
       {cardsQuery.isLoading ? (
         <div className="flex justify-center py-20">
@@ -81,12 +88,18 @@ export default function CardsPage() {
         <EmptyState
           icon={<QrCode className="size-10" />}
           title="No cards yet"
-          description="Add your first NFC card and point it at a destination page."
+          description={
+            canManage
+              ? "Add your first NFC card and point it at a destination page."
+              : "No cards have been added to this business yet."
+          }
           action={
-            <Button onClick={() => setCreating(true)}>
-              <Plus className="size-4" />
-              New card
-            </Button>
+            canManage && (
+              <Button onClick={() => setCreating(true)}>
+                <Plus className="size-4" />
+                New card
+              </Button>
+            )
           }
         />
       ) : (
@@ -142,6 +155,7 @@ export default function CardsPage() {
         <CardDetailModal
           card={selected}
           companyId={companyId}
+          canManage={canManage}
           onClose={() => setSelectedId(null)}
         />
       )}
@@ -259,10 +273,12 @@ function CreateCardModal({
 function CardDetailModal({
   card,
   companyId,
+  canManage,
   onClose,
 }: {
   card: CardModel;
   companyId: string;
+  canManage: boolean;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -277,6 +293,7 @@ function CardDetailModal({
     queryKey: ["pages", companyId, card.type],
     queryFn: () =>
       api.get<PageSummary[]>(`/companies/${companyId}/pages`, { kind: card.type }),
+    enabled: canManage,
   });
 
   const rename = useMutation({
@@ -329,67 +346,78 @@ function CardDetailModal({
 
           <CardQR url={tapUrl(card.slug)} />
 
-          <Field label="Name">
-            <div className="flex gap-2">
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
-              <Button
-                variant="outline"
-                loading={rename.isPending}
-                disabled={!name.trim() || name.trim() === card.name}
-                onClick={() => {
-                  setError(null);
-                  rename.mutate();
-                }}
-              >
-                Save
-              </Button>
-            </div>
-          </Field>
+          {canManage ? (
+            <>
+              <Field label="Name">
+                <div className="flex gap-2">
+                  <Input value={name} onChange={(e) => setName(e.target.value)} />
+                  <Button
+                    variant="outline"
+                    loading={rename.isPending}
+                    disabled={!name.trim() || name.trim() === card.name}
+                    onClick={() => {
+                      setError(null);
+                      rename.mutate();
+                    }}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </Field>
 
-          <Field
-            label="Destination"
-            hint={`Pick a ${meta.label.toLowerCase()} page. Changes take effect instantly.`}
-          >
-            {pagesQuery.isLoading ? (
-              <div className="py-2">
-                <Spinner />
+              <Field
+                label="Destination"
+                hint={`Pick a ${meta.label.toLowerCase()} page. Changes take effect instantly.`}
+              >
+                {pagesQuery.isLoading ? (
+                  <div className="py-2">
+                    <Spinner />
+                  </div>
+                ) : (
+                  <Select
+                    value={card.activePageId ?? ""}
+                    disabled={setDestination.isPending}
+                    onChange={(e) => {
+                      setError(null);
+                      setDestination.mutate(e.target.value || null);
+                    }}
+                  >
+                    <option value="">No destination</option>
+                    {(pagesQuery.data ?? []).map((page) => (
+                      <option key={page.id} value={page.id}>
+                        {page.name}
+                        {page.published ? "" : " (draft)"}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
+                <Button
+                  variant="outline"
+                  disabled={!canToggle}
+                  loading={setStatus.isPending}
+                  onClick={() => {
+                    setError(null);
+                    setStatus.mutate(nextStatus);
+                  }}
+                >
+                  {card.status === "DISABLED" ? "Enable card" : "Disable card"}
+                </Button>
+                <Button variant="danger" onClick={() => setConfirmDelete(true)}>
+                  Delete card
+                </Button>
               </div>
-            ) : (
-              <Select
-                value={card.activePageId ?? ""}
-                disabled={setDestination.isPending}
-                onChange={(e) => {
-                  setError(null);
-                  setDestination.mutate(e.target.value || null);
-                }}
-              >
-                <option value="">No destination</option>
-                {(pagesQuery.data ?? []).map((page) => (
-                  <option key={page.id} value={page.id}>
-                    {page.name}
-                    {page.published ? "" : " (draft)"}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
-            <Button
-              variant="outline"
-              disabled={!canToggle}
-              loading={setStatus.isPending}
-              onClick={() => {
-                setError(null);
-                setStatus.mutate(nextStatus);
-              }}
-            >
-              {card.status === "DISABLED" ? "Enable card" : "Disable card"}
-            </Button>
-            <Button variant="danger" onClick={() => setConfirmDelete(true)}>
-              Delete card
-            </Button>
-          </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted">
+              Destination:{" "}
+              <span className="font-medium text-ink">
+                {card.activePage?.name ?? "No destination"}
+              </span>
+            </p>
+          )}
 
           {error && <p className="text-sm text-negative">{error}</p>}
         </div>

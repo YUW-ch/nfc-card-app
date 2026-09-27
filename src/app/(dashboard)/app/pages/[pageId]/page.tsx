@@ -5,59 +5,21 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QRCodeCanvas } from "qrcode.react";
-import { ArrowLeft, Check, Copy, Trash2, ExternalLink, Palette } from "lucide-react";
+import { ArrowLeft, Check, Copy, Trash2, ExternalLink } from "lucide-react";
 import { api } from "@/lib/api";
 import { useCompanyId } from "@/lib/company";
-import type {
-  LinkHubContent,
-  MenuContent,
-  Page,
-  PageContent,
-  PageTheme,
-  ReviewContent,
-  VCardContent,
-  WifiContent,
-} from "@/lib/types";
-import { Badge, Button, Card, Field, Input, Spinner } from "@/components/ui";
+import { usePermissions } from "@/lib/permissions";
+import type { Page, PageContent, PageTheme } from "@/lib/types";
+import { Badge, Button, Card, Input, Spinner } from "@/components/ui";
 import { ConfirmDialog } from "@/components/modal";
-import { ReviewBuilder, emptyReviewContent } from "@/components/builders/ReviewBuilder";
-import { MenuBuilder, emptyMenuContent } from "@/components/builders/MenuBuilder";
-import { LinkHubBuilder, emptyLinkHubContent } from "@/components/builders/LinkHubBuilder";
-import { VCardBuilder, emptyVCardContent } from "@/components/builders/VCardBuilder";
-import { WifiBuilder, emptyWifiContent } from "@/components/builders/WifiBuilder";
+import { ViewOnlyNotice } from "@/components/gate";
+import { PageContentEditor, seedContent } from "@/components/builders/PageContentEditor";
 import { PagePreview } from "@/components/builders/PagePreview";
-
-const DEFAULT_BRAND = "#f0431f";
-
-/** Seed a builder's content from the loaded page, filling missing fields. */
-function seedContent(page: Page): PageContent {
-  const raw = (page.content ?? {}) as Record<string, unknown>;
-  const isEmpty = Object.keys(raw).length === 0;
-  switch (page.kind) {
-    case "REVIEW":
-      return isEmpty
-        ? emptyReviewContent()
-        : { ...emptyReviewContent(), ...(raw as unknown as ReviewContent) };
-    case "MENU": {
-      const c = raw as Partial<MenuContent>;
-      return { currency: c.currency ?? "CHF", sections: c.sections ?? emptyMenuContent().sections };
-    }
-    case "LINKHUB": {
-      const c = raw as Partial<LinkHubContent>;
-      return { headline: c.headline, avatarUrl: c.avatarUrl, links: c.links ?? [], socials: c.socials ?? [] };
-    }
-    case "VCARD":
-      return { ...emptyVCardContent(), ...(raw as unknown as VCardContent) };
-    case "WIFI":
-      return { ...emptyWifiContent(), ...(raw as unknown as WifiContent) };
-    default:
-      return raw;
-  }
-}
 
 export default function PageEditor() {
   const { pageId } = useParams<{ pageId: string }>();
   const companyId = useCompanyId();
+  const { canManage } = usePermissions();
   const router = useRouter();
   const qc = useQueryClient();
 
@@ -80,7 +42,7 @@ export default function PageEditor() {
     if (!page || seeded) return;
     setName(page.name);
     setPublished(page.published);
-    setContent(seedContent(page));
+    setContent(seedContent(page.kind, page.content));
     setTheme(page.theme ?? {});
     setSeeded(true);
   }, [page, seeded]);
@@ -90,7 +52,7 @@ export default function PageEditor() {
     return (
       name !== page.name ||
       published !== page.published ||
-      JSON.stringify(content) !== JSON.stringify(seedContent(page)) ||
+      JSON.stringify(content) !== JSON.stringify(seedContent(page.kind, page.content)) ||
       JSON.stringify(theme) !== JSON.stringify(page.theme ?? {})
     );
   }, [page, seeded, name, published, content, theme]);
@@ -152,6 +114,7 @@ export default function PageEditor() {
           <div className="flex items-center gap-3">
             <Input
               value={name}
+              readOnly={!canManage}
               onChange={(e) => setName(e.target.value)}
               className="max-w-xs text-lg font-semibold"
               aria-label="Page name"
@@ -159,51 +122,59 @@ export default function PageEditor() {
             <Badge tone="neutral">{page.kind}</Badge>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-sm font-semibold text-ink">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={published}
-                onClick={() => setPublished((p) => !p)}
-                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
-                  published ? "bg-positive" : "bg-ink/15"
-                }`}
-              >
-                <span
-                  className={`inline-block size-5 transform rounded-full bg-white shadow transition ${
-                    published ? "translate-x-5" : "translate-x-0.5"
+          {canManage ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={published}
+                  onClick={() => setPublished((p) => !p)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
+                    published ? "bg-positive" : "bg-ink/15"
                   }`}
-                />
-              </button>
-              {published ? "Published" : "Draft"}
-            </label>
+                >
+                  <span
+                    className={`inline-block size-5 transform rounded-full bg-white shadow transition ${
+                      published ? "translate-x-5" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+                {published ? "Published" : "Draft"}
+              </label>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfirmDelete(true)}
-              aria-label="Delete page"
-            >
-              <Trash2 className="size-4" /> Delete
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmDelete(true)}
+                aria-label="Delete page"
+              >
+                <Trash2 className="size-4" /> Delete
+              </Button>
 
-            <Button
-              size="sm"
-              loading={save.isPending}
-              disabled={!dirty}
-              onClick={() => save.mutate()}
-            >
-              {!dirty && !save.isPending ? (
-                <>
-                  <Check className="size-4" /> Saved
-                </>
-              ) : (
-                "Save"
-              )}
-            </Button>
-          </div>
+              <Button
+                size="sm"
+                loading={save.isPending}
+                disabled={!dirty}
+                onClick={() => save.mutate()}
+              >
+                {!dirty && !save.isPending ? (
+                  <>
+                    <Check className="size-4" /> Saved
+                  </>
+                ) : (
+                  "Save"
+                )}
+              </Button>
+            </div>
+          ) : (
+            <Badge tone={page.published ? "positive" : "muted"}>
+              {page.published ? "Published" : "Draft"}
+            </Badge>
+          )}
         </div>
+
+        {!canManage && <ViewOnlyNotice />}
 
         {save.isError && (
           <p className="text-sm text-negative">
@@ -243,55 +214,16 @@ export default function PageEditor() {
 
       {/* Two columns */}
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto]">
-        <div className="flex flex-col gap-6">
-          {page.kind === "REVIEW" && (
-            <ReviewBuilder
-              value={content as ReviewContent}
-              onChange={(v) => setContent(v)}
-            />
-          )}
-          {page.kind === "MENU" && (
-            <MenuBuilder value={content as MenuContent} onChange={(v) => setContent(v)} />
-          )}
-          {page.kind === "LINKHUB" && (
-            <LinkHubBuilder value={content as LinkHubContent} onChange={(v) => setContent(v)} />
-          )}
-          {page.kind === "VCARD" && (
-            <VCardBuilder value={content as VCardContent} onChange={(v) => setContent(v)} />
-          )}
-          {page.kind === "WIFI" && (
-            <WifiBuilder value={content as WifiContent} onChange={(v) => setContent(v)} />
-          )}
-
-          {/* Design */}
-          <Card className="flex flex-col gap-4">
-            <div className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-full bg-accent-soft text-accent">
-                <Palette className="size-4" />
-              </span>
-              <div>
-                <p className="display text-lg text-ink">Design</p>
-                <p className="text-xs text-muted">The accent colour used across your page.</p>
-              </div>
-            </div>
-            <Field label="Brand colour">
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={theme.brandColor || DEFAULT_BRAND}
-                  onChange={(e) => setTheme({ ...theme, brandColor: e.target.value })}
-                  className="size-11 shrink-0 cursor-pointer rounded-xl border border-line bg-white p-1"
-                  aria-label="Brand colour"
-                />
-                <Input
-                  value={theme.brandColor ?? ""}
-                  placeholder={DEFAULT_BRAND}
-                  onChange={(e) => setTheme({ ...theme, brandColor: e.target.value })}
-                />
-              </div>
-            </Field>
-          </Card>
-        </div>
+        {/* A disabled fieldset turns every builder control read-only for MEMBERs. */}
+        <fieldset disabled={!canManage} className="flex min-w-0 flex-col gap-6">
+          <PageContentEditor
+            kind={page.kind}
+            content={content}
+            onContentChange={setContent}
+            theme={theme}
+            onThemeChange={setTheme}
+          />
+        </fieldset>
 
         {/* Preview */}
         <div className="lg:sticky lg:top-6 lg:h-fit">

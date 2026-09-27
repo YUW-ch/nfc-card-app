@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Mail, Plus, Trash2, Users } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useCompany, useCompanyId } from "@/lib/company";
+import { usePermissions } from "@/lib/permissions";
 import type { CompanyRole } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { Modal, ConfirmDialog } from "@/components/modal";
@@ -37,12 +38,11 @@ const ROLE_LABEL: Record<CompanyRole, string> = {
 
 export default function TeamPage() {
   const companyId = useCompanyId();
-  const { access, company } = useCompany();
+  const { access } = useCompany();
+  const { canManage } = usePermissions();
   const queryClient = useQueryClient();
 
   const myUserId = access?.user?.id;
-  const myRole = company?.role;
-  const canManage = myRole === "OWNER" || myRole === "ADMIN";
 
   const [inviting, setInviting] = useState(false);
   const [removing, setRemoving] = useState<Member | null>(null);

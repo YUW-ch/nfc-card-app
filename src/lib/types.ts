@@ -1,14 +1,10 @@
 // Shared types mirroring the backend API shapes.
 
-export type Locale = "de" | "en" | "fr" | "it";
-export const LOCALES: Locale[] = ["de", "en", "fr", "it"];
-
-/** A localized string used inside page content (menus, link labels, ...). */
-export type LocalizedText = Partial<Record<Locale, string>>;
+export * from "./page-content";
+import type { PageContent, PageKind, PageTheme } from "./page-content";
 
 export type CompanyRole = "OWNER" | "ADMIN" | "MEMBER";
-export type CardType = "REVIEW" | "MENU" | "LINKHUB" | "VCARD" | "WIFI";
-export type PageKind = CardType;
+export type CardType = PageKind;
 export type CardStatus = "UNASSIGNED" | "ACTIVE" | "DISABLED";
 
 export interface Company {
@@ -74,93 +70,6 @@ export interface CardDesign {
   finish?: "matte" | "gloss" | "metal";
 }
 
-export interface PageTheme {
-  brandColor?: string;
-  background?: string;
-  textColor?: string;
-  logoUrl?: string;
-  cardStyle?: string;
-}
-
-// ─── Kind-specific content shapes (stored as JSON on Page.content) ────────────
-
-export interface ReviewContent {
-  provider: "google";
-  placeId?: string;
-  reviewUrl: string;
-  threshold?: number; // 1..5; below this, capture feedback internally
-  collectNegativeInternally?: boolean;
-  feedbackEmail?: string;
-}
-
-export interface MenuItem {
-  id: string;
-  name: LocalizedText;
-  description?: LocalizedText;
-  priceCents: number;
-  allergens?: string[];
-  tags?: string[];
-  imageUrl?: string;
-  available?: boolean;
-}
-
-export interface MenuSection {
-  id: string;
-  name: LocalizedText;
-  items: MenuItem[];
-}
-
-export interface MenuContent {
-  currency: string;
-  sections: MenuSection[];
-}
-
-export interface LinkHubLink {
-  id: string;
-  label: LocalizedText;
-  url: string;
-  icon?: string;
-}
-
-export interface SocialLink {
-  platform: string;
-  url: string;
-}
-
-export interface LinkHubContent {
-  headline?: LocalizedText;
-  avatarUrl?: string;
-  links: LinkHubLink[];
-  socials: SocialLink[];
-}
-
-export interface VCardContent {
-  firstName: string;
-  lastName: string;
-  org?: string;
-  title?: string;
-  phones?: { label: string; number: string }[];
-  emails?: { label: string; address: string }[];
-  website?: string;
-  address?: string;
-  socials?: SocialLink[];
-}
-
-export interface WifiContent {
-  ssid: string;
-  password?: string;
-  encryption: "WPA" | "WEP" | "nopass";
-  hidden?: boolean;
-}
-
-export type PageContent =
-  | ReviewContent
-  | MenuContent
-  | LinkHubContent
-  | VCardContent
-  | WifiContent
-  | Record<string, unknown>;
-
 // ─── Analytics ────────────────────────────────────────────────────────────────
 
 export interface AnalyticsSummary {
@@ -191,4 +100,61 @@ export interface PlanFeatures {
   maxLocations: number | null;
   unlimitedDestinationChanges: boolean;
   managed: boolean;
+  createPages: boolean;
+}
+
+export interface BillingResponse {
+  subscription: { status?: string; tier?: string } | null;
+  features: PlanFeatures;
+}
+
+/** An entry in the public plan catalogue (`GET /billing/plans`). */
+export interface SubscriptionPlan {
+  id: string;
+  tier: string;
+  name: string;
+  priceCents: number;
+  interval: string;
+  features: Partial<Omit<PlanFeatures, "tier">>;
+}
+
+// ─── Shop orders ──────────────────────────────────────────────────────────────
+
+export type OrderStatus =
+  | "PENDING_PAYMENT"
+  | "PAID"
+  | "IN_PRODUCTION"
+  | "SHIPPED"
+  | "CANCELLED"
+  | "EXPIRED";
+
+export interface OrderItem {
+  id: string;
+  /** Product key, e.g. "business" | "review". */
+  productKey: string;
+  productName: string;
+  quantity: number;
+  unitPriceCents: number;
+  lineTotalCents: number;
+}
+
+/** A card order (`GET /companies/:companyId/orders`). Money is in Rappen. */
+export interface Order {
+  id: string;
+  number: string;
+  status: OrderStatus;
+  email: string;
+  customerName: string;
+  companyName: string | null;
+  totalCents: number;
+  subtotalCents: number;
+  discountCents: number;
+  shippingCents: number;
+  currency: string;
+  createdAt: string;
+  paidAt: string | null;
+  shippedAt: string | null;
+  items: OrderItem[];
+  /** Cards pre-created for this order in the company. */
+  cardCount: number;
 }

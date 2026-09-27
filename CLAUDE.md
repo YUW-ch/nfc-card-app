@@ -8,6 +8,10 @@
   `@tanstack/react-query`, keyed by the current `companyId` from `@/lib/company`.
 - **Auth** via `@/lib/auth-client` (better-auth). Its methods return `{ data, error }`
   and do not throw.
+- **Page builders are shared with the admin console.** `components/builders/*`,
+  `components/localized-input.tsx`, `components/ui.tsx`, `lib/page-content.ts`, `lib/i18n.ts`
+  and `lib/utils.ts` are copied into nfc-card-admin by its `pnpm sync:builders`. Keep them
+  free of app-only imports (company context, permissions, API) so the copy still builds.
 - **Public pages** are mobile-first, `tap-safe`, and themable via `page.theme`.
   Customer-facing content is multilingual (`LocalizedText`, `pickLocalized`).
 - **Copy:** never use the em dash character in user-facing text. Use a period or

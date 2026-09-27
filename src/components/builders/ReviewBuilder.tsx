@@ -2,7 +2,7 @@
 
 import { Star, Sparkles } from "lucide-react";
 import { Card, Field, Input, Select } from "@/components/ui";
-import type { ReviewContent } from "@/lib/types";
+import type { ReviewContent } from "@/lib/page-content";
 
 /** Sensible defaults for a freshly created review page. */
 export function emptyReviewContent(): ReviewContent {

@@ -32,6 +32,22 @@ pnpm dev                           # http://localhost:3310
 
 Run the backend (`nfc-card-backend`) alongside it on `http://localhost:3311`.
 
+### Dev logins
+
+`pnpm db:seed:dev` in the backend seeds one business owner per plan. In `pnpm dev`
+the login form is prefilled with `dev@taplino.ch` and shows a **Dev accounts**
+picker to switch between them. Password for all: `taplino-dev`.
+
+| Email                | Business      | Plan    |
+|----------------------|---------------|---------|
+| `dev@taplino.ch`     | Taplino Dev   | Starter (also super admin in the admin console) |
+| `starter@taplino.ch` | Café Starter  | Starter |
+| `pro@taplino.ch`     | Bistro Pro    | Pro     |
+| `managed@taplino.ch` | Hotel Managed | Managed |
+
+The prefill and picker exist only under `next dev`; production builds contain
+neither the emails nor the password.
+
 ## Structure
 
 ```
