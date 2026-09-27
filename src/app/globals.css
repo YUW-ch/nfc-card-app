@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ */
+/*  Taplino — design system (shared with the marketing site)           */
+/* ------------------------------------------------------------------ */
+
+@theme {
+  --color-paper: #f6f3ec;
+  --color-paper-2: #efeae0;
+  --color-paper-3: #e7e1d4;
+  --color-ink: #14120f;
+  --color-ink-2: #1d1b17;
+  --color-ink-soft: #3a362f;
+  --color-muted: #6c665b;
+  --color-line: #ded7c8;
+  --color-line-dark: #2b2823;
+
+  --color-accent: #f0431f;
+  --color-accent-ink: #b8300f;
+  --color-accent-soft: #ffe9e2;
+
+  /* Dashboard surfaces */
+  --color-surface: #ffffff;
+  --color-positive: #16a34a;
+  --color-negative: #dc2626;
+
+  --font-display: var(--font-bricolage), "Bricolage Grotesque", sans-serif;
+  --font-body: var(--font-hanken), "Hanken Grotesk", sans-serif;
+
+  --radius-card: 1.4rem;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root {
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+}
+
+* {
+  border-color: var(--color-line);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-feature-settings: "ss01";
+}
+
+::selection {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+/* Utilities -------------------------------------------------------- */
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 0.98;
+}
+
+.eyebrow {
+  font-family: var(--font-body);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+/* Native-feeling scroll + tap on iOS for the public pages ---------- */
+.tap-safe {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* NFC ripple (reused on public landing) ---------------------------- */
+@keyframes ripple {
+  0% {
+    transform: scale(0.35);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.7);
+    opacity: 0;
+  }
+}
+.ripple-ring {
+  animation: ripple 2.6s var(--ease-out-expo) infinite;
+}
+
+/* Focus ------------------------------------------------------------ */
+:where(a, button):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
