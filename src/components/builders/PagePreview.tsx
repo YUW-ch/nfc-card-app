@@ -16,7 +16,7 @@ import type {
 } from "@/lib/page-content";
 import { formatChf } from "@/lib/utils";
 
-const DEFAULT_BRAND = "#f0431f";
+const DEFAULT_BRAND = "#2f6df0";
 
 function priceLabel(currency: string, cents: number): string {
   if ((currency ?? "CHF") === "CHF") return formatChf(cents);

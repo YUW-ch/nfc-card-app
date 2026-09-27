@@ -2,7 +2,7 @@
 
 The Taplino tenant dashboard and public tap renderer. Next.js 16 (App Router,
 React 19) + Tailwind v4, sharing the marketing site's design language (warm cream
-paper, ink text, orange accent, Bricolage Grotesque / Hanken Grotesk).
+paper, ink text, blue accent, Bricolage Grotesque / Hanken Grotesk).
 
 Two surfaces in one app:
 

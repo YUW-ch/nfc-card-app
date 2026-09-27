@@ -30,11 +30,11 @@ export function TapLoader() {
       <div className="relative flex size-24 items-center justify-center">
         <span
           className="ripple-ring absolute inset-0 rounded-full"
-          style={{ background: "rgba(240,67,31,0.18)" }}
+          style={{ background: "rgba(47,109,240,0.18)" }}
         />
         <span
           className="ripple-ring absolute inset-0 rounded-full"
-          style={{ background: "rgba(240,67,31,0.18)", animationDelay: "0.9s" }}
+          style={{ background: "rgba(47,109,240,0.18)", animationDelay: "0.9s" }}
         />
         <span className="display text-2xl text-ink">
           t<span className="text-accent">.</span>

@@ -18,7 +18,7 @@ import { LinkHubBuilder } from "./LinkHubBuilder";
 import { VCardBuilder, emptyVCardContent } from "./VCardBuilder";
 import { WifiBuilder, emptyWifiContent } from "./WifiBuilder";
 
-const DEFAULT_BRAND = "#f0431f";
+const DEFAULT_BRAND = "#2f6df0";
 
 /** Seed a builder's content from a stored page, filling missing fields. */
 export function seedContent(kind: PageKind, stored: unknown): PageContent {

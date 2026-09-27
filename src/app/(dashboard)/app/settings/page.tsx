@@ -54,7 +54,7 @@ function BusinessProfile({ companyId, canManage }: { companyId: string; canManag
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
-  const [brandColor, setBrandColor] = useState("#f0431f");
+  const [brandColor, setBrandColor] = useState("#2f6df0");
   const [logo, setLogo] = useState("");
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +63,7 @@ function BusinessProfile({ companyId, canManage }: { companyId: string; canManag
     if (!company) return;
     setName(company.name);
     setSlug(company.slug);
-    setBrandColor(company.brandColor || "#f0431f");
+    setBrandColor(company.brandColor || "#2f6df0");
     setLogo(company.logo ?? "");
   }, [company]);
 

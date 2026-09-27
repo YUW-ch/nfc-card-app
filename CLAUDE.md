@@ -1,7 +1,7 @@
 # Taplino app conventions
 
 - **Design language** matches the marketing site: `bg-paper` cream, `text-ink`,
-  orange `accent` (#f0431f), the `display` utility for headings, `rounded-card`,
+  blue `accent` (#2f6df0), the `display` utility for headings, `rounded-card`,
   pill buttons, `eyebrow` labels. Reuse `@/components/ui`, `modal`, `page-header`,
   `localized-input`.
 - **Data** goes through `@/lib/api` (auto-prefixes `/api/v1`, sends credentials) and

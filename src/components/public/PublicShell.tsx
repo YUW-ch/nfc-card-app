@@ -5,7 +5,7 @@ import type { Locale, PageTheme } from "@/lib/types";
 import { LOCALE_LABELS } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
-export const DEFAULT_BRAND = "#f0431f";
+export const DEFAULT_BRAND = "#2f6df0";
 
 /** Best-effort contrast pick for text on top of a brand-colored surface. */
 export function readableOn(hex?: string): string {

@@ -14,6 +14,7 @@ interface CompanyContextValue {
   companyId: string | undefined;
   setCompanyId: (id: string) => void;
   isLoading: boolean;
+  error: Error | null;
   refetch: () => void;
 }
 
@@ -21,7 +22,7 @@ const CompanyContext = createContext<CompanyContextValue | null>(null);
 
 /** Bootstraps the tenant context: loads /access, tracks the selected company. */
 export function CompanyProvider({ children }: { children: ReactNode }) {
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["access"],
     queryFn: () => api.get<AccessResponse>("/access"),
   });
@@ -53,7 +54,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
   return (
     <CompanyContext.Provider
-      value={{ access: data, companies, company, companyId, setCompanyId, isLoading, refetch }}
+      value={{ access: data, companies, company, companyId, setCompanyId, isLoading, error, refetch }}
     >
       {children}
     </CompanyContext.Provider>

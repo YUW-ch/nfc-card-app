@@ -31,7 +31,7 @@ export function Button({
   };
   const variants: Record<ButtonVariant, string> = {
     solid:
-      "bg-accent text-white hover:bg-accent-ink hover:-translate-y-0.5 shadow-[0_10px_30px_-12px_rgba(240,67,31,0.7)]",
+      "bg-accent text-white hover:bg-accent-ink hover:-translate-y-0.5 shadow-[0_10px_30px_-12px_rgba(47,109,240,0.7)]",
     outline: "border border-ink/20 text-ink hover:border-ink hover:-translate-y-0.5 bg-transparent",
     ghost: "text-ink hover:text-accent",
     light: "bg-white text-ink hover:-translate-y-0.5 shadow-[0_10px_30px_-14px_rgba(0,0,0,0.5)]",
