@@ -4,6 +4,7 @@
 // Public surface of the card designer module.
 export { CardEditor, type CardEditorProps } from "./CardEditor";
 export { CardPreview } from "./CardPreview";
+export { clearSavedCheckout, DEFAULT_CHECKOUT_KEY } from "./cart-state";
 export {
   CheckoutError,
   type CheckoutPayload,

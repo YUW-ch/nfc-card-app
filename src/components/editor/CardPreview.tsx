@@ -212,8 +212,12 @@ function MetalCardFace({
             <img
               src={config.logoDataUrl}
               alt="logo"
-              className="max-h-7 max-w-[120px] object-contain"
-              style={dark ? { filter: "brightness(0) invert(1)" } : undefined}
+              className="object-contain"
+              style={{
+                maxHeight: `${1.75 * (config.logoScale ?? 1)}rem`,
+                maxWidth: `${120 * (config.logoScale ?? 1)}px`,
+                ...(dark ? { filter: "brightness(0) invert(1)" } : {}),
+              }}
             />
           ) : company ? (
             <span className="truncate text-[0.62rem] font-semibold uppercase tracking-[0.16em]" style={{ color: sub }}>
@@ -255,19 +259,47 @@ function MetalCardFace({
   );
 }
 
+// The printed target over the NFC chip, so guests know where to hold the phone.
+function TapZone({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1 pb-2">
+      <span
+        className="grid size-9 place-items-center rounded-full"
+        style={{ border: `1.5px solid ${color}`, backgroundColor: `${color}14` }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path
+            d="M7 8.5a5 5 0 0 1 0 7M10.5 6a9 9 0 0 1 0 12M14 3.5a13 13 0 0 1 0 17"
+            stroke={color}
+            strokeWidth="1.9"
+            strokeLinecap="round"
+          />
+        </svg>
+      </span>
+      <span className="text-[0.55rem] font-bold uppercase tracking-wide" style={{ color }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
 // A faithful, live-updating recreation of the printed Google-review card.
+// `guides` draws the dashed logo area, an on-screen aid that is never printed.
 export function CardPreview({
   config,
   locale = "DE",
+  guides = false,
 }: {
   config: CardConfig;
   locale?: EditorLocale;
+  guides?: boolean;
 }) {
   const t = makeT(locale);
   const serif = config.font === "serif";
   const display = config.font === "display";
   const cardFont = FONT_STACKS[config.font];
   const shaped = config.headerShape !== "straight";
+  const logoScale = config.logoScale ?? 1;
 
   // Headline weight/emphasis follows the chosen voice.
   const headlineStyle = {
@@ -312,7 +344,7 @@ export function CardPreview({
         ) : (
         <div className="flex h-full flex-col p-4">
           {/* Header band */}
-          <div>
+          <div className="shrink-0">
             <div
               className={`px-5 pt-4 text-center ${shaped ? "rounded-t-[1.25rem] pb-3" : "rounded-[1.25rem] pb-6"}`}
               style={{ backgroundColor: config.headerColor, color: config.headerTextColor }}
@@ -338,46 +370,62 @@ export function CardPreview({
 
           {/* Body — one of three layouts */}
           {config.layout === "logo" && (
-            <div className="flex flex-1 items-center justify-center py-4">
+            <div className="flex min-h-0 flex-1 items-center justify-center py-4">
               <div
                 className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl px-4 text-center"
-                style={{ border: `2px dashed ${config.accentColor}66` }}
+                style={{ border: `2px dashed ${guides ? `${config.accentColor}66` : "transparent"}` }}
               >
                 {config.logoDataUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={config.logoDataUrl}
                     alt="logo"
-                    className="max-h-[62%] max-w-[78%] object-contain"
+                    className="min-h-0 object-contain"
+                    style={{
+                      maxHeight: `${Math.min(100, 62 * logoScale)}%`,
+                      maxWidth: `${Math.min(100, 78 * logoScale)}%`,
+                    }}
                   />
                 ) : (
-                  <>
-                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden>
-                      <rect x="3" y="3" width="18" height="18" rx="3" stroke={config.accentColor} strokeWidth="1.6" />
-                      <circle cx="8.5" cy="8.5" r="1.8" stroke={config.accentColor} strokeWidth="1.4" />
-                      <path d="M4 16l4.5-4 4 3.2L16 11l4 4.5" stroke={config.accentColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <p
-                      className="text-sm font-bold uppercase tracking-wide"
-                      style={{ color: config.accentColor, fontFamily: cardFont, fontStyle: serif ? "italic" : "normal" }}
-                    >
-                      {config.logoText || t(s.defaultLogoText)}
-                    </p>
-                    <p className="text-xs" style={{ color: `${config.accentColor}cc` }}>
-                      {config.logoHint || t(s.defaultLogoHint)}
-                    </p>
-                  </>
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <rect x="3" y="3" width="18" height="18" rx="3" stroke={config.accentColor} strokeWidth="1.6" />
+                    <circle cx="8.5" cy="8.5" r="1.8" stroke={config.accentColor} strokeWidth="1.4" />
+                    <path d="M4 16l4.5-4 4 3.2L16 11l4 4.5" stroke={config.accentColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+                {/* Without a logo these fill the placeholder; with one, only
+                    what the customer typed is printed under it. */}
+                {(!config.logoDataUrl || config.logoText) && (
+                  <p
+                    className="text-sm font-bold uppercase tracking-wide"
+                    style={{ color: config.accentColor, fontFamily: cardFont, fontStyle: serif ? "italic" : "normal" }}
+                  >
+                    {config.logoText || t(s.defaultLogoText)}
+                  </p>
+                )}
+                {(!config.logoDataUrl || config.logoHint) && (
+                  <p className="text-xs" style={{ color: `${config.accentColor}cc` }}>
+                    {config.logoHint || t(s.defaultLogoHint)}
+                  </p>
                 )}
               </div>
             </div>
           )}
 
           {config.layout === "text" && (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-3 py-4 text-center">
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-hidden px-3 py-4 text-center">
               {(config.logoDataUrl || config.logoText) &&
                 (config.logoDataUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={config.logoDataUrl} alt="logo" className="mb-1 max-h-14 max-w-[60%] object-contain" />
+                  <img
+                    src={config.logoDataUrl}
+                    alt="logo"
+                    className="mb-1 object-contain"
+                    style={{
+                      maxHeight: `${3.5 * logoScale}rem`,
+                      maxWidth: `${Math.min(100, 60 * logoScale)}%`,
+                    }}
+                  />
                 ) : (
                   <p
                     className="text-xs font-bold uppercase tracking-[0.16em]"
@@ -403,7 +451,7 @@ export function CardPreview({
           )}
 
           {config.layout === "list" && (
-            <div className="flex flex-1 flex-col justify-center gap-2 px-2 py-3">
+            <div className="flex min-h-0 flex-1 flex-col justify-center gap-2 overflow-hidden px-2 py-3">
               <p
                 className="text-center text-xs font-bold uppercase tracking-[0.16em]"
                 style={{ color: config.accentColor, fontFamily: cardFont, fontStyle: serif ? "italic" : "normal" }}
@@ -426,10 +474,14 @@ export function CardPreview({
             </div>
           )}
 
+          {config.showTapZone !== false && (
+            <TapZone color={config.accentColor} label={t(s.cardTapZone)} />
+          )}
+
           {/* Backup QR for phones without NFC */}
           {config.showQr && (
             <div
-              className="mb-2 flex items-center justify-center gap-2.5 rounded-xl px-3 py-2"
+              className="mb-2 flex shrink-0 items-center justify-center gap-2.5 rounded-xl px-3 py-2"
               style={{ backgroundColor: `${config.accentColor}12` }}
             >
               <QrCode value={config.reviewUrl} fg={config.headerColor} />
@@ -448,14 +500,18 @@ export function CardPreview({
           )}
 
           {/* Footer */}
-          <div className="flex items-center justify-between gap-2 pt-1 text-ink">
-            <div className="flex items-center gap-1.5">
-              <GoogleG />
-              <span className="text-[0.62rem] font-semibold leading-tight text-ink/80">
-                {t(s.cardGoogleReview)}
-              </span>
-            </div>
-            <div className="h-6 w-px bg-black/10" />
+          <div className="flex shrink-0 items-center justify-between gap-2 pt-1 text-ink">
+            {config.showGoogle && (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <GoogleG />
+                  <span className="text-[0.62rem] font-semibold leading-tight text-ink/80">
+                    {t(s.cardGoogleReview)}
+                  </span>
+                </div>
+                <div className="h-6 w-px bg-black/10" />
+              </>
+            )}
             <div className="flex items-center gap-1.5">
               <TapGlyph color={config.accentColor} />
               <span className="text-[0.62rem] font-semibold leading-tight text-ink/80">

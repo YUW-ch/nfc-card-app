@@ -11,6 +11,18 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CardPreview } from "./CardPreview";
+import { CartLines, CartSummary, type CartLine } from "./CartView";
+import {
+  DEFAULT_CHECKOUT_KEY,
+  MAX_CART_ITEMS,
+  itemIssues,
+  loadCheckout,
+  newCartId,
+  priceLine,
+  productTotals,
+  saveCheckout,
+  type CartItem,
+} from "./cart-state";
 import { Button, Arrow } from "./Button";
 import { s } from "./strings";
 import { makeT, type EditorLocale } from "./locale";
@@ -28,6 +40,7 @@ import {
   CARD_TYPES,
   DEFAULT_VOLUME_TIERS,
   FINISHES,
+  LOGO_SCALE,
   PRESETS,
   exampleCard,
   type CardConfig,
@@ -49,6 +62,15 @@ const chf = (n: number) =>
 function initialConfig(): CardConfig {
   return exampleCard();
 }
+
+// Wizard steps. Each step reveals a slice of the design controls; the live
+// preview and order box stay pinned in the sidebar throughout. The last step
+// is the cart with contact and shipping details before payment.
+const STEPS = [s.stepCard, s.stepTemplate, s.stepDesign, s.stepContent, s.stepCheckout];
+const LAST_STEP = STEPS.length - 1;
+const CONTENT_STEP = LAST_STEP - 1;
+const DEFAULT_QTY = 50;
+const FRESH_CONFIG = JSON.stringify(exampleCard());
 
 function Section({ n, title, children }: { n: number; title: string; children: ReactNode }) {
   return (
@@ -279,6 +301,8 @@ type OrderError =
   | "stock"
   | "invalid"
   | "fields"
+  | "cartIssues"
+  | "cartFull"
   | "logoTooLarge"
   | "logoRasterTooLarge"
   | "logoUnreadable";
@@ -288,6 +312,8 @@ const ORDER_ERROR_TEXT: Record<OrderError, (typeof s)[keyof typeof s]> = {
   stock: s.orderStockError,
   invalid: s.orderInvalidError,
   fields: s.coFixFields,
+  cartIssues: s.cartIssuesError,
+  cartFull: s.cartFull,
   logoTooLarge: s.logoTooLarge,
   logoRasterTooLarge: s.logoRasterTooLarge,
   logoUnreadable: s.logoUnreadable,
@@ -338,6 +364,11 @@ export type CardEditorProps = {
   layout?: "page" | "panel";
   /** Extra classes for the outer grid; defaults to section padding on "page". */
   className?: string;
+  /**
+   * localStorage key for the saved cart and checkout progress. Hosts clear it
+   * with `clearSavedCheckout` once the order is paid.
+   */
+  storageKey?: string;
 };
 
 // Tailwind needs literal class names, so both layouts are spelled out.
@@ -368,12 +399,13 @@ export function CardEditor({
   notice = null,
   layout = "page",
   className,
+  storageKey = DEFAULT_CHECKOUT_KEY,
 }: CardEditorProps) {
   const t = makeT(locale);
   const ui = LAYOUTS[layout];
   const [config, setConfig] = useState<CardConfig>(initialConfig);
   const [activePreset, setActivePreset] = useState<string>(PRESETS[0].key);
-  const [rawQty, setQty] = useState(50);
+  const [rawQty, setQty] = useState(DEFAULT_QTY);
   const [step, setStep] = useState(0);
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState<OrderError | null>(null);
@@ -381,6 +413,11 @@ export function CardEditor({
   const [showNotice, setShowNotice] = useState(true);
   const [edits, setEdits] = useState<Partial<ContactDraft>>({});
   const [showErrors, setShowErrors] = useState(false);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  // The cart line the current design belongs to. Once a design is in the cart
+  // every change to it updates that line; null means it is not added yet.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
 
@@ -397,6 +434,25 @@ export function CardEditor({
     window.addEventListener("pageshow", onShow);
     return () => window.removeEventListener("pageshow", onShow);
   }, []);
+
+  // Restore the saved cart and checkout progress once, after hydration (the
+  // server render cannot see localStorage).
+  useEffect(() => {
+    const saved = loadCheckout(storageKey);
+    /* eslint-disable react-hooks/set-state-in-effect -- one-off restore after hydration */
+    if (saved) {
+      const linked = saved.cart.some((i) => i.id === saved.draft.editingId);
+      setCart(saved.cart);
+      setConfig(saved.draft.config);
+      setQty(saved.draft.qty);
+      setEditingId(linked ? saved.draft.editingId : null);
+      setStep(Math.min(saved.draft.step, LAST_STEP));
+      if (PRESETS.some((p) => p.key === saved.draft.preset)) setActivePreset(saved.draft.preset);
+      setEdits(saved.contact as Partial<ContactDraft>);
+    }
+    setHydrated(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [storageKey]);
 
   const tiers = [...(volumeTiers?.length ? volumeTiers : DEFAULT_VOLUME_TIERS)].sort(
     (a, b) => b.min - a.min,
@@ -415,11 +471,52 @@ export function CardEditor({
   const isBusiness = config.cardType === "business";
   const basePrice = activeType.price;
 
-  // Wizard steps. Each step reveals a slice of the design controls; the live
-  // preview and order box stay pinned in the sidebar throughout. The last step
-  // collects contact and shipping details before payment.
-  const STEPS = [s.stepCard, s.stepTemplate, s.stepDesign, s.stepContent, s.stepCheckout];
-  const lastStep = STEPS.length - 1;
+  const lastStep = LAST_STEP;
+
+  // The cart as it stands, with the design being edited folded into its line.
+  const cartView: CartItem[] = editingId
+    ? cart.map((i) => (i.id === editingId ? { ...i, quantity: qty, design: config } : i))
+    : cart;
+  const canAdd = cartView.length < MAX_CART_ITEMS;
+  const draftInCart = editingId !== null;
+  const draftIsFresh = !draftInCart && JSON.stringify(config) === FRESH_CONFIG;
+
+  // Save progress (debounced, logos make the payload heavy).
+  useEffect(() => {
+    if (!hydrated) return;
+    const timer = setTimeout(() => {
+      const items = editingId
+        ? cart.map((i) => (i.id === editingId ? { ...i, quantity: rawQty, design: config } : i))
+        : cart;
+      saveCheckout(storageKey, {
+        cart: items,
+        draft: { config, qty: rawQty, editingId, step, preset: activePreset },
+        contact: edits as Record<string, string>,
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [hydrated, storageKey, cart, editingId, config, rawQty, step, activePreset, edits]);
+
+  const typeOf = (key: CardType) => cardTypes.find((c) => c.key === key) ?? cardTypes[1];
+  const totals = productTotals(cartView);
+  const lines: CartLine[] = cartView.map((item) => {
+    const type = typeOf(item.design.cardType);
+    const stock = catalog[type.key]?.stock ?? null;
+    return {
+      item,
+      name: t(type.name),
+      basePrice: type.price,
+      price: priceLine(type.price, item.quantity, tiers, totals[type.key] ?? item.quantity),
+      issues: itemIssues(item, {
+        available: type.available,
+        stockLeft: stock,
+        productTotal: totals[type.key] ?? item.quantity,
+      }),
+      maxQty: stock != null && stock > 0 ? Math.min(stock, MAX_QTY) : MAX_QTY,
+      editing: item.id === editingId && step < lastStep,
+    };
+  });
+  const linesWithIssues = lines.filter((l) => l.issues.length > 0).length;
 
   const set = <K extends keyof CardConfig>(key: K, val: CardConfig[K]) =>
     setConfig((c) => ({ ...c, [key]: val }));
@@ -461,35 +558,111 @@ export function CardEditor({
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => {
-      set("logoDataUrl", reader.result as string);
-      set("logoName", file.name);
+    // Shrink the logo right away: it is saved with the cart in the browser and
+    // sent with the order, both of which have size limits.
+    reader.onload = async () => {
+      try {
+        const logo = await prepareLogo(reader.result as string);
+        set("logoDataUrl", logo);
+        set("logoName", file.name);
+      } catch (err) {
+        setLogoError(errorKind(err));
+        if (fileRef.current) fileRef.current.value = "";
+      }
     };
     reader.onerror = () => setLogoError("logoUnreadable");
     reader.readAsDataURL(file);
   };
 
-  const reset = () => {
-    setConfig(initialConfig());
-    setActivePreset(PRESETS[0].key);
-    setQty(50);
-    setStep(0);
+  const scrollToControls = () =>
+    controlsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  const loadDraft = (design: CardConfig, quantity: number, id: string | null) => {
+    setConfig(design);
+    setQty(quantity);
+    setEditingId(id);
     setLogoError(null);
     setOrderError(null);
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  // Client-side estimate that mirrors the server's pricing (unit price rounded
-  // to whole Rappen). The server recalculates and is authoritative.
-  const tier = tiers.find((tt) => qty >= tt.min);
-  const off = tier?.off ?? 0;
-  const baseCents = Math.round(basePrice * 100);
-  const unitCents = Math.round(baseCents * (1 - off));
-  const unit = unitCents / 100;
-  const subtotalNum = (qty * baseCents) / 100;
-  const totalNum = (qty * unitCents) / 100;
-  const savingsNum = subtotalNum - totalNum;
-  const total = chf(totalNum);
+  // Resets the current design. If it is already in the cart, that line follows.
+  const reset = () => {
+    loadDraft(initialConfig(), DEFAULT_QTY, editingId);
+    setActivePreset(PRESETS[0].key);
+    setStep(0);
+  };
+
+  const addToCart = () => {
+    if (!draftInCart) {
+      if (!canAdd) {
+        setOrderError("cartFull");
+        return;
+      }
+      const id = newCartId();
+      setCart([...cart, { id, quantity: qty, design: config }]);
+      setEditingId(id);
+    }
+    setOrderError(null);
+    setStep(lastStep);
+    scrollToControls();
+  };
+
+  const designAnother = () => {
+    if (!canAdd) {
+      setOrderError("cartFull");
+      return;
+    }
+    setCart(cartView);
+    loadDraft(initialConfig(), DEFAULT_QTY, null);
+    setActivePreset(PRESETS[0].key);
+    setStep(0);
+    scrollToControls();
+  };
+
+  const editItem = (id: string, toStep = 0) => {
+    const item = cartView.find((i) => i.id === id);
+    if (!item) return;
+    setCart(cartView);
+    loadDraft(item.design, item.quantity, id);
+    setStep(Math.min(toStep, CONTENT_STEP));
+    scrollToControls();
+  };
+
+  const duplicateItem = (id: string) => {
+    const item = cartView.find((i) => i.id === id);
+    if (!item || !canAdd) return;
+    const at = cartView.indexOf(item) + 1;
+    setCart([...cartView.slice(0, at), { ...item, id: newCartId() }, ...cartView.slice(at)]);
+  };
+
+  const removeItem = (id: string) => {
+    setCart(cartView.filter((i) => i.id !== id));
+    if (id === editingId) {
+      loadDraft(initialConfig(), DEFAULT_QTY, null);
+      setActivePreset(PRESETS[0].key);
+    }
+  };
+
+  const setItemQty = (id: string, quantity: number) => {
+    if (id === editingId) setQty(quantity);
+    else setCart(cart.map((i) => (i.id === id ? { ...i, quantity } : i)));
+  };
+
+  // Estimate for the design being edited; the server's pricing is authoritative.
+  // Discounts count every card of this type in the order, so the draft is
+  // priced as if it were in the cart (it already is once added).
+  const tierQty = draftInCart
+    ? (totals[activeType.key] ?? qty)
+    : qty + (totals[activeType.key] ?? 0);
+  const tier = tiers.find((tt) => tierQty >= tt.min);
+  const draftPrice = priceLine(basePrice, qty, tiers, tierQty);
+  const off = draftPrice.off;
+  const unit = draftPrice.unit;
+  const subtotalNum = draftPrice.gross;
+  const savingsNum = draftPrice.gross - draftPrice.total;
+  const total = chf(draftPrice.total);
+  const cartTotal = lines.reduce((sum, l) => sum + l.price.total, 0);
 
   const fieldErrors = showErrors ? validateContact(contact, askEmail) : {};
   const fieldErrorText = (key: keyof ContactDraft) => {
@@ -499,14 +672,23 @@ export function CardEditor({
 
   const goToCheckout = () => {
     setStep(lastStep);
-    controlsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollToControls();
   };
 
+  // Everything that still blocks the payment, for the summary checklist.
+  const contactErrors = validateContact(contact, askEmail);
+  const missing: string[] = [];
+  if (linesWithIssues > 0) missing.push(t(s.missingItems).replace("{n}", String(linesWithIssues)));
+  if (contactErrors.email || contactErrors.customerName) missing.push(t(s.missingContact));
+  if (contactErrors.line1 || contactErrors.postalCode || contactErrors.city || contactErrors.country) {
+    missing.push(t(s.missingShipping));
+  }
+
   const checkout = async () => {
-    if (!activeType.available || placing) return;
-    if (Object.keys(validateContact(contact, askEmail)).length > 0) {
+    if (placing || cartView.length === 0) return;
+    if (linesWithIssues > 0 || Object.keys(contactErrors).length > 0) {
       setShowErrors(true);
-      setOrderError("fields");
+      setOrderError(linesWithIssues > 0 ? "cartIssues" : "fields");
       if (step !== lastStep) goToCheckout();
       return;
     }
@@ -514,7 +696,13 @@ export function CardEditor({
     setPlacing(true);
     setOrderError(null);
     try {
-      const logo = await prepareLogo(config.logoDataUrl);
+      const items = await Promise.all(
+        cartView.map(async (i) => ({
+          productKey: i.design.cardType,
+          quantity: i.quantity,
+          design: { ...i.design, logoDataUrl: await prepareLogo(i.design.logoDataUrl) },
+        })),
+      );
       const trim = (v: string) => v.trim() || undefined;
       const payload: CheckoutPayload = {
         ...(askEmail ? { email: contact.email.trim() } : {}),
@@ -529,7 +717,7 @@ export function CardEditor({
           country: contact.country,
         },
         locale: toLocaleSlug(locale),
-        items: [{ productKey: activeType.key, quantity: qty, design: { ...config, logoDataUrl: logo } }],
+        items,
       };
       const { checkoutUrl } = await onCheckout(payload);
       // Stay in the busy state while the browser leaves for the payment page.
@@ -785,6 +973,18 @@ export function CardEditor({
               checked={config.showQr}
               onChange={(v) => set("showQr", v)}
             />
+            <Toggle
+              label={t(s.showGoogle)}
+              hint={t(s.showGoogleHint)}
+              checked={config.showGoogle}
+              onChange={(v) => set("showGoogle", v)}
+            />
+            <Toggle
+              label={t(s.showTapZone)}
+              hint={t(s.showTapZoneHint)}
+              checked={config.showTapZone}
+              onChange={(v) => set("showTapZone", v)}
+            />
           </div>
           )}
         </Section>
@@ -842,6 +1042,23 @@ export function CardEditor({
               <span className="text-sm font-semibold text-ink">{t(s.uploadLogo)}</span>
               <span className="text-xs text-muted">{t(s.uploadHint)}</span>
             </button>
+          )}
+          {config.logoDataUrl && (
+            <label className="mt-4 block">
+              <span className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted">
+                {t(s.logoSize)}
+                <span className="tabular-nums text-ink">{Math.round(config.logoScale * 100)}%</span>
+              </span>
+              <input
+                type="range"
+                min={LOGO_SCALE.min}
+                max={LOGO_SCALE.max}
+                step={LOGO_SCALE.step}
+                value={config.logoScale}
+                onChange={(e) => set("logoScale", Number(e.target.value))}
+                className="mt-2 w-full accent-ink"
+              />
+            </label>
           )}
           {logoError && (
             <p className="mt-3 text-sm font-medium text-accent">{t(ORDER_ERROR_TEXT[logoError])}</p>
@@ -1040,11 +1257,70 @@ export function CardEditor({
         )}
 
         {/* Step 5: checkout, contact and shipping details */}
-        {step === 4 && (
-        <Section n={1} title={t(s.stepCheckout)}>
+        {step === lastStep && (
+        <>
+        <Section n={1} title={t(s.cartTitle)}>
+          {!draftInCart && !draftIsFresh && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-ink">
+              <span>{t(s.draftNotInCart)}</span>
+              <span className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => setStep(CONTENT_STEP)}
+                  className="font-semibold text-muted transition-colors hover:text-ink"
+                >
+                  {t(s.keepDesigning)}
+                </button>
+                <button
+                  type="button"
+                  onClick={addToCart}
+                  disabled={!canAdd}
+                  className="font-semibold text-accent transition-colors hover:text-ink disabled:opacity-40"
+                >
+                  {t(s.addToCart)}
+                </button>
+              </span>
+            </div>
+          )}
+
+          {lines.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
+              <p className="text-sm text-muted">{t(s.cartEmpty)}</p>
+              <Button onClick={designAnother} className="mt-4">
+                {t(s.cartDesignFirst)} <Arrow />
+              </Button>
+            </div>
+          ) : (
+            <>
+              <CartLines
+                lines={lines}
+                locale={locale}
+                t={t}
+                canAdd={canAdd}
+                onQty={setItemQty}
+                onEdit={editItem}
+                onDuplicate={duplicateItem}
+                onRemove={removeItem}
+              />
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+                <button
+                  type="button"
+                  onClick={designAnother}
+                  disabled={!canAdd}
+                  className="rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  + {t(s.designAnother)}
+                </button>
+                {!canAdd && <span className="text-xs text-muted">{t(s.cartFull)}</span>}
+              </div>
+            </>
+          )}
+          <p className="mt-4 text-xs text-muted">{t(s.cartSaved)}</p>
+        </Section>
+
+        <Section n={2} title={t(s.contactHeading)}>
           <p className="mb-5 text-sm text-muted">{t(s.checkoutHint)}</p>
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-ink">{t(s.contactHeading)}</h3>
             {askEmail && (
               <Field label={t(s.coEmail)} error={fieldErrorText("email")}>
                 <input
@@ -1150,6 +1426,7 @@ export function CardEditor({
             </Field>
           </div>
         </Section>
+        </>
         )}
 
         {/* Step navigation */}
@@ -1163,17 +1440,21 @@ export function CardEditor({
             >
               ← {t(s.back)}
             </button>
-            {!activeType.available ? (
+            {step === lastStep ? (
+              <Button onClick={checkout} disabled={placing || cartView.length === 0}>
+                {placing ? busyLabel : t(s.payNow)} <Arrow />
+              </Button>
+            ) : !activeType.available ? (
               <span className="inline-flex items-center rounded-full border border-line px-6 py-3 text-sm font-semibold text-muted">
                 {t(s.notAvailable)}
               </span>
-            ) : step < lastStep ? (
-              <Button onClick={() => setStep((s) => Math.min(lastStep, s + 1))}>
-                {t(s.continue)} <Arrow />
+            ) : step === CONTENT_STEP ? (
+              <Button onClick={addToCart}>
+                {t(draftInCart ? s.updateCart : s.addToCart)} <Arrow />
               </Button>
             ) : (
-              <Button onClick={checkout} disabled={placing}>
-                {placing ? busyLabel : t(s.payNow)} <Arrow />
+              <Button onClick={() => setStep((s) => Math.min(lastStep, s + 1))}>
+                {t(s.continue)} <Arrow />
               </Button>
             )}
           </div>
@@ -1182,20 +1463,40 @@ export function CardEditor({
               {orderErrorText}
             </p>
           )}
-          <button
-            type="button"
-            onClick={reset}
-            className="mx-auto mt-4 block text-sm font-semibold text-muted transition-colors hover:text-accent"
-          >
-            ↺ {t(s.resetDesign)}
-          </button>
+          {step < lastStep && (
+            <button
+              type="button"
+              onClick={reset}
+              className="mx-auto mt-4 block text-sm font-semibold text-muted transition-colors hover:text-accent"
+            >
+              ↺ {t(s.resetDesign)}
+            </button>
+          )}
         </div>
       </div>
 
       {/* ── Preview + order (sticky) ─────────────────────────────── */}
       <div className={ui.side}>
         <div className={ui.sticky}>
-          <CardPreview config={config} locale={locale} />
+          {step === lastStep ? (
+            <CartSummary
+              lines={lines}
+              t={t}
+              missing={missing}
+              placing={placing}
+              busyLabel={busyLabel}
+              errorText={orderErrorText}
+              footnote={`${t(s.orderNote)} ${t(s.estimateNote)}`}
+              onPay={checkout}
+            />
+          ) : (
+          <>
+          {/* The dashed logo guide only shows while designing, so what the
+              customer sees from the next step on matches the print. */}
+          <CardPreview config={config} locale={locale} guides={step === 2} />
+          {step === 2 && !isBusiness && config.layout === "logo" && (
+            <p className="mt-2 text-center text-xs text-muted">{t(s.guideHint)}</p>
+          )}
 
           {/* Order box */}
           <div className="mt-6 rounded-card border border-line bg-paper-2/40 p-5">
@@ -1243,7 +1544,7 @@ export function CardEditor({
               </div>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {[...tiers].reverse().map((tt) => {
-                  const reached = qty >= tt.min;
+                  const reached = tierQty >= tt.min;
                   const current = tier?.min === tt.min;
                   return (
                     <span
@@ -1261,11 +1562,7 @@ export function CardEditor({
                   );
                 })}
               </div>
-              {off === 0 && (
-                <p className="mt-2 text-[0.7rem] leading-snug text-muted">
-                  {t(s.volumeHint)}
-                </p>
-              )}
+              <p className="mt-2 text-[0.7rem] leading-snug text-muted">{t(s.volumeHint)}</p>
             </div>
 
             <div className="mt-4 flex items-end justify-between border-t border-line pt-4">
@@ -1282,11 +1579,8 @@ export function CardEditor({
                 )}
               </div>
               {activeType.available ? (
-                <Button
-                  onClick={step === lastStep ? checkout : goToCheckout}
-                  disabled={placing}
-                >
-                  {placing ? busyLabel : t(step === lastStep ? s.payNow : s.placeOrder)} <Arrow />
+                <Button onClick={addToCart}>
+                  {t(draftInCart ? s.updateCart : s.addToCart)} <Arrow />
                 </Button>
               ) : (
                 <span className="inline-flex items-center rounded-full border border-line px-6 py-3 text-sm font-semibold text-muted">
@@ -1298,10 +1592,27 @@ export function CardEditor({
             {orderErrorText && (
               <p className="mt-3 text-sm font-medium text-accent">{orderErrorText}</p>
             )}
+            {cartView.length > 0 && (
+              <button
+                type="button"
+                onClick={goToCheckout}
+                className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-line bg-paper/60 px-3 py-2.5 text-left text-sm transition-colors hover:border-ink/40"
+              >
+                <span className="font-semibold text-ink">
+                  {t(s.cartLabel)} · {t(s.cartCards).replace("{n}", String(cartView.reduce((n, i) => n + i.quantity, 0)))}
+                </span>
+                <span className="flex items-center gap-2 font-semibold text-ink">
+                  CHF {chf(cartTotal)}
+                  <span className="text-xs text-accent">{t(s.viewCart)} →</span>
+                </span>
+              </button>
+            )}
             <p className="mt-3 text-xs leading-relaxed text-muted">
               {t(s.orderNote)} {t(s.estimateNote)}
             </p>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

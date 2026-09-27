@@ -72,9 +72,9 @@ export function toLocaleSlug(locale: EditorLocale): CheckoutPayload["locale"] {
 }
 
 // ── Logo size limits ─────────────────────────────────────────────────
-// The design (logo included, as a data URL) travels in the JSON body, which
-// the API caps at roughly 600 KB. Raster logos are downscaled; SVGs are kept
-// as vectors but must stay small.
+// Each design (logo included, as a data URL) travels in the JSON body and is
+// also saved with the cart in localStorage. The API allows about 700 KB per
+// design, so raster logos are downscaled; SVGs stay vectors but must be small.
 export const SVG_MAX_BYTES = 300 * 1024;
 const RASTER_MAX_SIDE = 800;
 const RASTER_TARGET_BYTES = 380 * 1024;

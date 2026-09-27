@@ -67,6 +67,9 @@ export function useCompany() {
   return ctx;
 }
 
+/** Where the card designer saves its cart and checkout progress, per business. */
+export const checkoutStorageKey = (companyId: string) => `taplino.checkout.${companyId}`;
+
 /** Convenience: the current company id, or throws if none selected yet. */
 export function useCompanyId(): string {
   const { companyId } = useCompany();

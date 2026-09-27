@@ -3,7 +3,8 @@
 import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
+import { useQueryClient } from "@tanstack/react-query";
+import { authClient, useSession } from "@/lib/auth-client";
 import { Button, Card, Field, Input } from "@/components/ui";
 
 function Wordmark() {
@@ -41,6 +42,11 @@ const DEV_ACCOUNTS =
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const queryClient = useQueryClient();
+  // Subscribing keeps better-auth's session store live on this page, and
+  // refetching it after sign-in means the dashboard layout never reads the
+  // stale signed-out state and bounces straight back here.
+  const { refetch: refetchSession } = useSession();
   const verified = params.get("verified") === "true";
   // Carried through from a shop order email via register and verify-email.
   const prefillEmail = params.get("email");
@@ -56,11 +62,15 @@ function LoginForm() {
     setError(null);
     setLoading(true);
     const { error } = await authClient.signIn.email({ email, password });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       setError(error.message ?? "Could not sign in. Please try again.");
       return;
     }
+    await refetchSession();
+    // Drop the previous account's cached /access, otherwise the dashboard sees
+    // a user mismatch and signs the new session out again.
+    queryClient.clear();
     router.push("/app");
   }
 

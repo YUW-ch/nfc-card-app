@@ -10,7 +10,7 @@ import type { Location } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { Modal, ConfirmDialog } from "@/components/modal";
 import { UpgradeNotice, ViewOnlyNotice } from "@/components/gate";
-import { Badge, Button, Card, EmptyState, Field, Input, Select, Spinner } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Field, Input, Spinner } from "@/components/ui";
 
 interface LocationForm {
   name: string;
@@ -86,6 +86,7 @@ export default function LocationsPage() {
   const canAdd = canManage && canAddLocation(locations.length);
   const upgradePlans = plansWithLocations(locations.length + 1);
   const maxLocations = features?.multiLocation ? features.maxLocations : 1;
+  const currentDefault = locations.find((l) => l.isDefault);
 
   return (
     <div>
@@ -192,6 +193,7 @@ export default function LocationsPage() {
       {creating && (
         <LocationModal
           companyId={companyId}
+          currentDefault={currentDefault}
           onClose={() => setCreating(false)}
           onSaved={() => {
             invalidate();
@@ -204,6 +206,7 @@ export default function LocationsPage() {
         <LocationModal
           companyId={companyId}
           location={editing}
+          currentDefault={currentDefault}
           onClose={() => setEditing(null)}
           onSaved={() => {
             invalidate();
@@ -231,16 +234,24 @@ export default function LocationsPage() {
 function LocationModal({
   companyId,
   location,
+  currentDefault,
   onClose,
   onSaved,
 }: {
   companyId: string;
   location?: Location;
+  currentDefault?: Location;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [form, setForm] = useState<LocationForm>(location ? toForm(location) : emptyForm());
   const [error, setError] = useState<string | null>(null);
+
+  // The backend keeps exactly one default: it unmarks the others when this is
+  // set, and ignores unsetting it. So the current default stays locked here.
+  const isCurrentDefault = !!location?.isDefault;
+  const replacesDefault =
+    form.isDefault && !isCurrentDefault && currentDefault && currentDefault.id !== location?.id;
 
   const set = <K extends keyof LocationForm>(key: K, value: LocationForm[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -328,15 +339,38 @@ function LocationModal({
             placeholder="https://g.page/r/..."
           />
         </Field>
-        <Field label="Default location">
-          <Select
-            value={form.isDefault ? "yes" : "no"}
-            onChange={(e) => set("isDefault", e.target.value === "yes")}
+        <div>
+          <label
+            className={`flex items-start gap-3 rounded-2xl border border-line p-3 ${
+              isCurrentDefault ? "opacity-70" : "cursor-pointer hover:border-accent"
+            }`}
           >
-            <option value="no">No</option>
-            <option value="yes">Yes, make this the default</option>
-          </Select>
-        </Field>
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 shrink-0 accent-accent"
+              checked={form.isDefault}
+              disabled={isCurrentDefault}
+              onChange={(e) => set("isDefault", e.target.checked)}
+            />
+            <span>
+              <span className="block text-sm font-semibold text-ink">
+                Set as default location
+              </span>
+              <span className="block text-xs text-muted">
+                {isCurrentDefault
+                  ? "This is your default location. To change it, make another location the default."
+                  : "Used when a card has no location set. Only one location can be the default."}
+              </span>
+            </span>
+          </label>
+          {replacesDefault && (
+            <p className="mt-2 rounded-2xl bg-accent-soft px-4 py-3 text-sm text-ink">
+              This becomes your new default location.{" "}
+              <span className="font-semibold">{currentDefault.name}</span> will no longer be the
+              default.
+            </p>
+          )}
+        </div>
         {error && <p className="text-sm text-negative">{error}</p>}
       </div>
     </Modal>

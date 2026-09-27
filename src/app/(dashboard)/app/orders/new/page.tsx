@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
-import { useCompany, useCompanyId } from "@/lib/company";
+import { checkoutStorageKey, useCompany, useCompanyId } from "@/lib/company";
 import { usePermissions } from "@/lib/permissions";
 import { PageHeader } from "@/components/page-header";
 import { Spinner } from "@/components/ui";
@@ -114,6 +114,7 @@ export default function NewOrderPage({
       ) : (
         <CardEditor
           layout="panel"
+          storageKey={checkoutStorageKey(companyId)}
           locale={EDITOR_LOCALE}
           catalog={shopQuery.data?.catalog}
           volumeTiers={shopQuery.data?.volumeTiers}

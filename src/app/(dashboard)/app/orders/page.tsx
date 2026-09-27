@@ -1,12 +1,13 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, CreditCard, Package, Plus, X } from "lucide-react";
 import { api } from "@/lib/api";
-import { useCompany } from "@/lib/company";
+import { checkoutStorageKey, useCompany } from "@/lib/company";
+import { clearSavedCheckout } from "@/components/editor/cart-state";
 import { usePermissions } from "@/lib/permissions";
 import type { Order, OrderStatus } from "@/lib/types";
 import { formatChf } from "@/lib/utils";
@@ -55,6 +56,11 @@ function Orders() {
   const { companyId } = useCompany();
   const { canManage } = usePermissions();
   const queryClient = useQueryClient();
+
+  // Back from a paid checkout: the designer's saved cart is done with.
+  useEffect(() => {
+    if (paid && companyId) clearSavedCheckout(checkoutStorageKey(companyId));
+  }, [paid, companyId]);
 
   const ordersQuery = useQuery({
     queryKey: ["orders", companyId],

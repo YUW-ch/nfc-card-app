@@ -98,6 +98,7 @@ export type CardConfig = {
   logoHint: string;
   logoDataUrl: string | null;
   logoName: string | null;
+  logoScale: number; // logo size relative to the default, see LOGO_SCALE
   // Layout-specific content.
   bodyText: string; // "text" layout — the big message
   listTitle: string; // "list" layout — heading above the items
@@ -111,6 +112,8 @@ export type CardConfig = {
   headerShape: HeaderShape;
   showStars: boolean;
   showQr: boolean; // backup QR code for phones without NFC
+  showGoogle: boolean; // "Google review" mark in the footer
+  showTapZone: boolean; // printed "hold your phone here" target over the chip
   reviewUrl: string;
   // Business-card fields (metal card only)
   fullName: string;
@@ -150,6 +153,7 @@ export function exampleCard(): CardConfig {
     logoHint: "",
     logoDataUrl: null,
     logoName: null,
+    logoScale: 1,
     bodyText: "",
     listTitle: "",
     listItems: "",
@@ -162,6 +166,8 @@ export function exampleCard(): CardConfig {
     headerShape: p.headerShape,
     showStars: p.showStars,
     showQr: false,
+    showGoogle: false,
+    showTapZone: true,
     reviewUrl: "",
     fullName: "",
     jobTitle: "",
@@ -233,6 +239,9 @@ export const PRESETS: Preset[] = [
     showStars: false,
   },
 ];
+
+// Logo size slider range, as a factor of the default logo size.
+export const LOGO_SCALE = { min: 0.5, max: 1.6, step: 0.05 } as const;
 
 // Font stacks for the card. One family drives the whole card so the headline,
 // logo label and body all share the same voice.
