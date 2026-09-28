@@ -9,20 +9,21 @@ import { ArrowLeft, Check, Copy, Trash2, ExternalLink } from "lucide-react";
 import { api } from "@/lib/api";
 import { useCompanyId } from "@/lib/company";
 import { usePermissions } from "@/lib/permissions";
-import type { Page, PageContent, PageTheme } from "@/lib/types";
+import type { Location, Page, PageContent, PageTheme } from "@/lib/types";
 import type { LocalizedText } from "@/lib/page-content";
 import { Badge, Button, Card, Input, Spinner } from "@/components/ui";
 import { ConfirmDialog } from "@/components/modal";
-import { ViewOnlyNotice } from "@/components/gate";
+import { UpgradeNotice, ViewOnlyNotice } from "@/components/gate";
 import { WifiGuests, type WifiGuest } from "@/components/builders/WifiGuests";
 import { seedContent } from "@/components/builders/PageContentEditor";
 import { PageWorkspace } from "@/components/builders/PageWorkspace";
-import type { BuilderServices, DesignTemplate, PageOption } from "@/components/builders/host";
+import type { BuilderServices, PageOption } from "@/components/builders/host";
+import { designTemplateServices } from "@/lib/design-templates";
 
 export default function PageEditor() {
   const { pageId } = useParams<{ pageId: string }>();
   const companyId = useCompanyId();
-  const { canManage } = usePermissions();
+  const { canManage, pagesActive } = usePermissions();
   const router = useRouter();
   const qc = useQueryClient();
 
@@ -30,6 +31,15 @@ export default function PageEditor() {
     queryKey: ["page", companyId, pageId],
     queryFn: () => api.get<Page>(`/companies/${companyId}/pages/${pageId}`),
   });
+  const { data: locations } = useQuery({
+    queryKey: ["locations", companyId],
+    queryFn: () => api.get<Location[]>(`/companies/${companyId}/locations`),
+  });
+
+  // Read-only (never deleted) when pages are not in the plan, or the page sits
+  // on a location over the plan's limit. The API enforces the same.
+  const lockedLocation = locations?.find((l) => l.id === page?.locationId && l.readOnly);
+  const canEdit = canManage && pagesActive && !lockedLocation;
 
   // Local draft state (only PATCHed on Save).
   const [name, setName] = useState("");
@@ -43,7 +53,6 @@ export default function PageEditor() {
   // What the shared builders call. Roles and the monthly translation limit are
   // enforced by these endpoints.
   const services = useMemo<BuilderServices>(() => {
-    const templatesPath = `/companies/${companyId}/design-templates`;
     return {
       translate: (text, from, to) =>
         api
@@ -64,14 +73,7 @@ export default function PageEditor() {
             .get<PageOption[]>(`/companies/${companyId}/pages`)
             .then((all) => all.filter((p) => p.id !== pageId)),
       },
-      templates: {
-        queryKey: ["design-templates", companyId],
-        list: () => api.get<DesignTemplate[]>(templatesPath),
-        create: (templateName, templateTheme) =>
-          api.post<DesignTemplate>(templatesPath, { name: templateName, theme: templateTheme }),
-        update: (id, patch) => api.patch<DesignTemplate>(`${templatesPath}/${id}`, patch),
-        remove: (id) => api.delete<void>(`${templatesPath}/${id}`),
-      },
+      templates: designTemplateServices(companyId),
     };
   }, [companyId, pageId]);
 
@@ -152,7 +154,7 @@ export default function PageEditor() {
           <div className="flex items-center gap-3">
             <Input
               value={name}
-              readOnly={!canManage}
+              readOnly={!canEdit}
               onChange={(e) => setName(e.target.value)}
               className="max-w-xs text-lg font-semibold"
               aria-label="Page name"
@@ -160,7 +162,7 @@ export default function PageEditor() {
             <Badge tone="neutral">{page.kind}</Badge>
           </div>
 
-          {canManage ? (
+          {canEdit ? (
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm font-semibold text-ink">
                 <button
@@ -206,13 +208,25 @@ export default function PageEditor() {
               </Button>
             </div>
           ) : (
-            <Badge tone={page.published ? "positive" : "muted"}>
-              {page.published ? "Published" : "Draft"}
+            <Badge tone={!pagesActive ? "muted" : page.published ? "positive" : "muted"}>
+              {!pagesActive ? "Offline" : page.published ? "Published" : "Draft"}
             </Badge>
           )}
         </div>
 
         {!canManage && <ViewOnlyNotice />}
+        {canManage && !pagesActive && (
+          <UpgradeNotice
+            title="Pages are not in your plan"
+            description="This page is saved but offline, and cards that point to it open taplino.ch. Upgrade your plan in Settings to edit and publish it again."
+          />
+        )}
+        {canManage && pagesActive && lockedLocation && (
+          <UpgradeNotice
+            title={`${lockedLocation.name} is read-only`}
+            description="This location is over your plan's limit. The page stays live. Make the location active in Locations, or upgrade, to change it."
+          />
+        )}
 
         {save.isError && (
           <p className="text-sm text-negative">
@@ -257,7 +271,7 @@ export default function PageEditor() {
         onContentChange={setContent}
         theme={theme}
         onThemeChange={setTheme}
-        canEdit={canManage}
+        canEdit={canEdit}
         services={services}
       />
 

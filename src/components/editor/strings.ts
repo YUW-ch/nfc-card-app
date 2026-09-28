@@ -57,10 +57,6 @@ export const s = {
     "Partez d'un style sectoriel, tout reste modifiable.",
     "Parti da uno stile di settore, tutto resta modificabile.",
   ),
-  presetRestaurant: l("Restaurant", "Restaurant", "Restaurant", "Ristorante"),
-  presetElectronics: l("Electronics", "Elektronik", "Électronique", "Elettronica"),
-  presetFitness: l("Fitness & Club", "Fitness & Club", "Fitness & Club", "Fitness & Club"),
-  presetBeauty: l("Beauty & Salon", "Beauty & Salon", "Beauté & Salon", "Bellezza & Salone"),
   // Logo upload
   uploadLogo: l("Upload your logo", "Logo hochladen", "Téléverser votre logo", "Carica il tuo logo"),
   uploadHint: l(
@@ -83,6 +79,8 @@ export const s = {
   fieldHeadline: l("Headline", "Überschrift", "Titre", "Titolo"),
   fieldLogoText: l("Logo label", "Logo-Text", "Texte logo", "Testo logo"),
   fieldLogoHint: l("Logo caption", "Logo-Untertitel", "Légende logo", "Didascalia logo"),
+  showTapZoneText: l("Text on the marker", "Text zur Markierung", "Texte sous le repère", "Testo sotto l'indicatore"),
+  fieldTapZoneText: l("Tap marker text", "Text der Antipp-Markierung", "Texte du repère", "Testo dell'indicatore"),
   fontStyle: l("Font style", "Schriftstil", "Style de police", "Stile carattere"),
   fontSans: l("Modern", "Modern", "Moderne", "Moderno"),
   fontSerif: l("Elegant", "Elegant", "Élégant", "Elegante"),
@@ -114,6 +112,8 @@ export const s = {
   showQrHint: l("Add a scannable code for phones without NFC", "Scanbaren Code für Handys ohne NFC hinzufügen", "Ajouter un code scannable pour les téléphones sans NFC", "Aggiungi un codice scansionabile per telefoni senza NFC"),
   showGoogle: l("Google review mark", "Google-Bewertung-Hinweis", "Mention avis Google", "Marchio recensione Google"),
   showGoogleHint: l("Show the Google logo in the footer", "Google-Logo in der Fusszeile zeigen", "Afficher le logo Google en bas de la carte", "Mostra il logo Google nel piè di pagina"),
+  logoOnly: l("Logo and marker only", "Nur Logo und Markierung", "Logo et repère uniquement", "Solo logo e indicatore"),
+  logoOnlyHint: l("A clean card without headline, text or footer", "Schlichte Karte ohne Überschrift, Text und Fusszeile", "Carte épurée sans titre, texte ni pied de page", "Carta essenziale senza titolo, testo o piè di pagina"),
   showTapZone: l("Tap here marker", "Hier-antippen-Markierung", "Repère « approchez ici »", "Indicatore « avvicina qui »"),
   showTapZoneHint: l("Shows guests where to hold their phone", "Zeigt Gästen, wo sie das Handy hinhalten", "Montre où approcher le téléphone", "Mostra dove avvicinare il telefono"),
   cardTapZone: l("Hold phone here", "Handy hier hinhalten", "Approchez le téléphone ici", "Avvicina il telefono qui"),
@@ -126,11 +126,8 @@ export const s = {
   ),
   // Layout-specific content fields
   fieldBodyText: l("Card message", "Karten-Botschaft", "Message de la carte", "Messaggio della carta"),
-  fieldBodyTextPh: l("Loved your visit? Tell the world in 30 seconds.", "Hat es Ihnen gefallen? Erzählen Sie es in 30 Sekunden.", "Vous avez aimé ? Dites-le en 30 secondes.", "Ti è piaciuto? Raccontalo in 30 secondi."),
   fieldListTitle: l("List title", "Listen-Titel", "Titre de la liste", "Titolo elenco"),
-  fieldListTitlePh: l("e.g. Today's favourites", "z. B. Beliebt heute", "p. ex. Les favoris du jour", "es. I preferiti di oggi"),
   fieldListItems: l("List items (one per line)", "Listenpunkte (einer pro Zeile)", "Éléments (un par ligne)", "Voci (una per riga)"),
-  fieldListItemsPh: l("Signature burger\nHand-cut fries\nHomemade lemonade", "Signature-Burger\nHausgemachte Pommes\nHausgemachte Limonade", "Burger signature\nFrites maison\nLimonade maison", "Burger d'autore\nPatatine fatte in casa\nLimonata fatta in casa"),
   // Destination
   reviewUrl: l("Google review link", "Google-Bewertungslink", "Lien d'avis Google", "Link recensione Google"),
   reviewUrlPh: l("https://g.page/r/…", "https://g.page/r/…", "https://g.page/r/…", "https://g.page/r/…"),

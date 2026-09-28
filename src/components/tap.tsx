@@ -86,7 +86,8 @@ export function CardTap({ path }: { path: string }) {
     retry: false,
   });
 
-  // A custom link: the tap is already counted, go straight there.
+  // A custom link (the tap is already counted), or taplino.ch when the
+  // business's pages are offline on its plan: go straight there.
   const redirectUrl = data?.status === "redirect" ? data.url : null;
   useEffect(() => {
     if (redirectUrl) window.location.replace(redirectUrl);

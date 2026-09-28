@@ -69,6 +69,18 @@ export function usePermissions() {
     plansWithLocations: (count: number) =>
       otherPlans.filter((p) => planAllowsLocations(p, count)).map((p) => p.name),
     can: (feature: BooleanFeature) => Boolean(features?.[feature]),
+    /**
+     * Pages are live and editable (plan or staff override). When false they are
+     * kept but read-only here and offline to the public. Treated as active while
+     * loading, so editors do not flash a lock.
+     */
+    pagesActive: billingQuery.data?.pagesActive ?? true,
+    /** How many locations the plan allows. null = unlimited. */
+    locationLimit: features
+      ? features.multiLocation
+        ? features.maxLocations
+        : 1
+      : null,
     /** Mirrors the location limit in the backend's `LocationsService.create`. */
     canAddLocation: (existingCount: number) => {
       if (existingCount === 0) return true;

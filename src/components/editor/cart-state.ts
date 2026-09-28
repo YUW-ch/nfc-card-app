@@ -137,9 +137,9 @@ export function itemIssues(
     issues.push({ kind: "stock", left: opts.stockLeft });
   }
   if (!d.logoDataUrl && d.logoName) issues.push({ kind: "logoLost" });
-  else if (!business && d.layout === "logo" && !d.logoDataUrl) issues.push({ kind: "logo" });
+  else if (!business && (d.logoOnly || d.layout === "logo") && !d.logoDataUrl) issues.push({ kind: "logo" });
   if (business && !d.fullName.trim()) issues.push({ kind: "name" });
-  if (!business && d.showQr && !d.reviewUrl.trim()) issues.push({ kind: "qrLink" });
+  if (!business && !d.logoOnly && d.showQr && !d.reviewUrl.trim()) issues.push({ kind: "qrLink" });
   return issues;
 }
 

@@ -486,8 +486,8 @@ function CreateCardModal({
             <Select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
               <option value="">No location</option>
               {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.name}
+                <option key={loc.id} value={loc.id} disabled={loc.readOnly}>
+                  {loc.readOnly ? `${loc.name} (read-only)` : loc.name}
                 </option>
               ))}
             </Select>
@@ -561,7 +561,7 @@ function AreaField({
 function CardDetailModal({
   card,
   companyId,
-  canManage,
+  canManage: isManager,
   locations,
   areas,
   onClose,
@@ -574,6 +574,9 @@ function CardDetailModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  // A card on a location over the plan's limit stays live but read-only.
+  const locked = Boolean(card.location?.readOnly);
+  const canManage = isManager && !locked;
   const [name, setName] = useState(card.name);
   const [area, setArea] = useState(card.area ?? "");
   const companySlug = useCompanySlug();
@@ -647,7 +650,15 @@ function CardDetailModal({
             <Badge tone={STATUS_TONE[card.status]}>{STATUS_LABEL[card.status]}</Badge>
             {card.location?.name && <Badge tone="neutral">{card.location.name}</Badge>}
             {card.area && <Badge tone="neutral">{card.area}</Badge>}
+            {locked && <Badge tone="muted">Read-only</Badge>}
           </div>
+
+          {isManager && locked && (
+            <p className="rounded-2xl border border-line bg-white px-4 py-2.5 text-sm text-muted">
+              {card.location?.name} is over your plan&apos;s location limit. This card keeps working,
+              but can&apos;t be changed. Make the location active in Locations, or upgrade.
+            </p>
+          )}
 
           <CardQR url={tapUrl(companySlug, card.slug)} />
 
@@ -682,8 +693,8 @@ function CardDetailModal({
                   >
                     <option value="">No location</option>
                     {locations.map((loc) => (
-                      <option key={loc.id} value={loc.id}>
-                        {loc.name}
+                      <option key={loc.id} value={loc.id} disabled={loc.readOnly}>
+                        {loc.readOnly ? `${loc.name} (read-only)` : loc.name}
                       </option>
                     ))}
                   </Select>

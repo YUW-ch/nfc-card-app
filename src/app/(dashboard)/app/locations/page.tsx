@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MapPin, Pencil, Plus, Trash2 } from "lucide-react";
+import { Lock, MapPin, Pencil, Plus, Trash2 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useCompanyId } from "@/lib/company";
 import { formatPlanNames, usePermissions } from "@/lib/permissions";
@@ -60,8 +60,10 @@ function toPayload(form: LocationForm) {
 
 export default function LocationsPage() {
   const companyId = useCompanyId();
-  const { canManage, canAddLocation, features, planName, plansWithLocations } = usePermissions();
+  const { canManage, canAddLocation, features, planName, plansWithLocations, locationLimit } =
+    usePermissions();
   const [creating, setCreating] = useState(false);
+  const [choosing, setChoosing] = useState(false);
   const [editing, setEditing] = useState<Location | null>(null);
   const [deleting, setDeleting] = useState<Location | null>(null);
   const queryClient = useQueryClient();
@@ -87,6 +89,10 @@ export default function LocationsPage() {
   const upgradePlans = plansWithLocations(locations.length + 1);
   const maxLocations = features?.multiLocation ? features.maxLocations : 1;
   const currentDefault = locations.find((l) => l.isDefault);
+  // Over the plan's limit (after a downgrade): kept and live, but read-only.
+  const readOnlyCount = locations.filter((l) => l.readOnly).length;
+  const planIncludes =
+    maxLocations === 1 ? "a single location" : `up to ${maxLocations} locations`;
 
   return (
     <div>
@@ -105,12 +111,28 @@ export default function LocationsPage() {
       />
 
       {!canManage && <ViewOnlyNotice className="mb-6" />}
-      {canManage && !canAdd && !locationsQuery.isLoading && (
+      {readOnlyCount > 0 && (
         <UpgradeNotice
           className="mb-6"
-          title={`Your ${planName ? `${planName} ` : ""}plan includes ${
-            maxLocations === 1 ? "a single location" : `up to ${maxLocations} locations`
+          title={
+            readOnlyCount === 1 ? "1 location is read-only" : `${readOnlyCount} locations are read-only`
+          }
+          description={`Your ${planName ? `${planName} ` : ""}plan includes ${planIncludes}. The others are kept and their cards and pages stay live, but they can't be changed. ${
+            canManage ? "Choose which locations stay active, or upgrade in Settings." : ""
           }`}
+          action={
+            canManage && (
+              <Button size="sm" variant="outline" onClick={() => setChoosing(true)}>
+                Choose active locations
+              </Button>
+            )
+          }
+        />
+      )}
+      {canManage && !canAdd && readOnlyCount === 0 && !locationsQuery.isLoading && (
+        <UpgradeNotice
+          className="mb-6"
+          title={`Your ${planName ? `${planName} ` : ""}plan includes ${planIncludes}`}
           description={
             upgradePlans.length > 0
               ? `Upgrade to ${formatPlanNames(upgradePlans)} to add more. Contact us at hello@taplino.ch.`
@@ -152,14 +174,17 @@ export default function LocationsPage() {
                   </span>
                   <div>
                     <p className="font-semibold text-ink">{loc.name}</p>
-                    {loc.isDefault && (
-                      <Badge tone="accent" className="mt-1">
-                        Default
-                      </Badge>
-                    )}
+                    <div className="mt-1 flex gap-1.5 empty:hidden">
+                      {loc.isDefault && <Badge tone="accent">Default</Badge>}
+                      {loc.readOnly && (
+                        <Badge tone="muted">
+                          <Lock className="size-3" /> Read-only
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
-                {canManage && (
+                {canManage && !loc.readOnly && (
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
@@ -211,6 +236,21 @@ export default function LocationsPage() {
           onSaved={() => {
             invalidate();
             setEditing(null);
+          }}
+        />
+      )}
+
+      {choosing && (
+        <ActiveLocationsModal
+          companyId={companyId}
+          locations={locations}
+          limit={locationLimit}
+          onClose={() => setChoosing(false)}
+          onSaved={() => {
+            invalidate();
+            // Cards and pages show whether their location is read-only.
+            queryClient.invalidateQueries({ queryKey: ["cards", companyId] });
+            setChoosing(false);
           }}
         />
       )}
@@ -371,6 +411,97 @@ function LocationModal({
             </p>
           )}
         </div>
+        {error && <p className="text-sm text-negative">{error}</p>}
+      </div>
+    </Modal>
+  );
+}
+
+/** Pick which locations stay editable when there are more than the plan allows. */
+function ActiveLocationsModal({
+  companyId,
+  locations,
+  limit,
+  onClose,
+  onSaved,
+}: {
+  companyId: string;
+  locations: Location[];
+  /** null = unlimited. */
+  limit: number | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [selected, setSelected] = useState<string[]>(() =>
+    locations.filter((l) => !l.readOnly).map((l) => l.id),
+  );
+  const [error, setError] = useState<string | null>(null);
+  const full = limit !== null && selected.length >= limit;
+  const defaultKept = locations.some((l) => l.isDefault && selected.includes(l.id));
+  const firstChosen = locations.find((l) => l.id === selected[0]);
+
+  const toggle = (id: string) =>
+    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.put<Location[]>(`/companies/${companyId}/locations/active`, { locationIds: selected }),
+    onSuccess: onSaved,
+    onError: (err) =>
+      setError(err instanceof ApiError ? err.message : "Could not save your choice."),
+  });
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Choose active locations"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            loading={save.isPending}
+            disabled={selected.length === 0}
+            onClick={() => save.mutate()}
+          >
+            Save
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <p className="text-sm text-muted">
+          {limit === null
+            ? "Pick the locations you can edit."
+            : `Your plan includes ${limit === 1 ? "one location" : `${limit} locations`}. The others stay live but read-only. Nothing is deleted.`}
+        </p>
+        {locations.map((loc) => {
+          const checked = selected.includes(loc.id);
+          const disabled = !checked && full;
+          return (
+            <label
+              key={loc.id}
+              className={`flex items-center gap-3 rounded-2xl border border-line p-3 ${
+                disabled ? "opacity-50" : "cursor-pointer hover:border-accent"
+              }`}
+            >
+              <input
+                type="checkbox"
+                className="size-4 shrink-0 accent-accent"
+                checked={checked}
+                disabled={disabled}
+                onChange={() => toggle(loc.id)}
+              />
+              <span className="flex-1 text-sm font-semibold text-ink">{loc.name}</span>
+              {loc.isDefault && <Badge tone="accent">Default</Badge>}
+            </label>
+          );
+        })}
+        {!defaultKept && firstChosen && (
+          <p className="text-xs text-muted">{firstChosen.name} becomes your default location.</p>
+        )}
         {error && <p className="text-sm text-negative">{error}</p>}
       </div>
     </Modal>

@@ -9,7 +9,7 @@ import { makeT, type EditorLocale, type Translate } from "./locale";
 import markLogo from "./assets/taplino-mark.svg";
 import markLogoLight from "./assets/taplino-mark-cream-on-ink.svg";
 import lockupLogo from "./assets/taplino-lockup.svg";
-import { CARD_TYPES, FINISHES, FONT_STACKS, type CardConfig, type HeaderShape } from "./types";
+import { CARD_TYPES, FINISHES, FONT_STACKS, exampleText, type CardConfig, type HeaderShape } from "./types";
 
 const STAR =
   "M12 2l3 6.5 7 .8-5.2 4.7 1.4 6.9L12 17.6 5.4 20.9l1.4-6.9L1.6 9.3l7-.8L12 2z";
@@ -262,12 +262,13 @@ function MetalCardFace({
 // The printed target over the NFC chip, so guests know where to hold the phone.
 function TapZone({ color, label }: { color: string; label: string }) {
   return (
-    <div className="flex shrink-0 flex-col items-center gap-1 pb-2">
+    <div className="flex shrink-0 flex-col items-center gap-1.5 pb-3">
+      {/* Sized relative to the card, about the footprint of the chip antenna */}
       <span
-        className="grid size-9 place-items-center rounded-full"
-        style={{ border: `1.5px solid ${color}`, backgroundColor: `${color}14` }}
+        className="grid aspect-square w-[22%] min-w-14 place-items-center rounded-full"
+        style={{ border: `2px solid ${color}`, backgroundColor: `${color}14` }}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden className="h-1/2 w-1/2">
           <path
             d="M7 8.5a5 5 0 0 1 0 7M10.5 6a9 9 0 0 1 0 12M14 3.5a13 13 0 0 1 0 17"
             stroke={color}
@@ -276,9 +277,14 @@ function TapZone({ color, label }: { color: string; label: string }) {
           />
         </svg>
       </span>
-      <span className="text-[0.55rem] font-bold uppercase tracking-wide" style={{ color }}>
-        {label}
-      </span>
+      {label && (
+        <span
+          className="max-w-full truncate px-2 text-[0.7rem] font-bold uppercase tracking-wide"
+          style={{ color }}
+        >
+          {label}
+        </span>
+      )}
     </div>
   );
 }
@@ -300,6 +306,8 @@ export function CardPreview({
   const cardFont = FONT_STACKS[config.font];
   const shaped = config.headerShape !== "straight";
   const logoScale = config.logoScale ?? 1;
+  const tapLabel =
+    config.showTapZoneText === false ? "" : config.tapZoneText?.trim() || t(s.cardTapZone);
 
   // Headline weight/emphasis follows the chosen voice.
   const headlineStyle = {
@@ -313,7 +321,8 @@ export function CardPreview({
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean);
-  const listItems = items.length ? items : t(s.defaultListItems).split("\n");
+  const example = exampleText(config, t);
+  const listItems = items.length ? items : example.listItems.split("\n");
 
   // Each card type has its own physical format (aspect ratio + relative size).
   const typeDef = CARD_TYPES.find((c) => c.key === config.cardType);
@@ -341,6 +350,40 @@ export function CardPreview({
       >
         {metal ? (
           <MetalCardFace config={config} dark={config.finish === "black"} t={t} />
+        ) : config.logoOnly ? (
+          <div className="flex h-full flex-col p-4">
+            <div className="flex min-h-0 flex-1 items-center justify-center p-4">
+              <div
+                className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl px-4 text-center"
+                style={{ border: `2px dashed ${guides ? `${config.accentColor}66` : "transparent"}` }}
+              >
+                {config.logoDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={config.logoDataUrl}
+                    alt="logo"
+                    className="min-h-0 object-contain"
+                    style={{
+                      maxHeight: `${Math.min(100, 70 * logoScale)}%`,
+                      maxWidth: `${Math.min(100, 80 * logoScale)}%`,
+                    }}
+                  />
+                ) : (
+                  <>
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <rect x="3" y="3" width="18" height="18" rx="3" stroke={config.accentColor} strokeWidth="1.6" />
+                      <circle cx="8.5" cy="8.5" r="1.8" stroke={config.accentColor} strokeWidth="1.4" />
+                      <path d="M4 16l4.5-4 4 3.2L16 11l4 4.5" stroke={config.accentColor} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <p className="text-xs" style={{ color: `${config.accentColor}cc` }}>
+                      {t(s.defaultLogoHint)}
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+            <TapZone color={config.accentColor} label={tapLabel} />
+          </div>
         ) : (
         <div className="flex h-full flex-col p-4">
           {/* Header band */}
@@ -362,7 +405,7 @@ export function CardPreview({
                 className={`text-[1.05rem] leading-tight ${config.showStars ? "mt-2.5" : "mt-0"}`}
                 style={headlineStyle}
               >
-                {config.headline || t(s.defaultHeadline)}
+                {config.headline || example.headline}
               </p>
             </div>
             <HeaderEdge shape={config.headerShape} color={config.headerColor} />
@@ -445,7 +488,7 @@ export function CardPreview({
                 className="text-ink text-[1.35rem] leading-snug"
                 style={{ ...headlineStyle, color: undefined }}
               >
-                {config.bodyText || t(s.defaultBodyText)}
+                {config.bodyText || example.bodyText}
               </p>
             </div>
           )}
@@ -456,7 +499,7 @@ export function CardPreview({
                 className="text-center text-xs font-bold uppercase tracking-[0.16em]"
                 style={{ color: config.accentColor, fontFamily: cardFont, fontStyle: serif ? "italic" : "normal" }}
               >
-                {config.listTitle || t(s.defaultListTitle)}
+                {config.listTitle || example.listTitle}
               </p>
               <ul className="mx-auto flex w-full max-w-[15rem] flex-col gap-1.5">
                 {listItems.slice(0, 6).map((row, i) => (
@@ -475,7 +518,7 @@ export function CardPreview({
           )}
 
           {config.showTapZone !== false && (
-            <TapZone color={config.accentColor} label={t(s.cardTapZone)} />
+            <TapZone color={config.accentColor} label={tapLabel} />
           )}
 
           {/* Backup QR for phones without NFC */}

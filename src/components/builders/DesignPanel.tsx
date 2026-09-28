@@ -198,8 +198,17 @@ function DesignSwatch({ theme, name, onClick, active }: { theme: PageTheme; name
 
 // ─── Templates ────────────────────────────────────────────────────────────────
 
-function Templates({ theme, onChange }: { theme: PageTheme; onChange: (t: PageTheme) => void }) {
-  const { templates } = useBuilderServices();
+function Templates({
+  theme,
+  onChange,
+  showSaved,
+}: {
+  theme: PageTheme;
+  onChange: (t: PageTheme) => void;
+  showSaved: boolean;
+}) {
+  const { templates: services } = useBuilderServices();
+  const templates = showSaved ? services : undefined;
   const qc = useQueryClient();
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
@@ -336,10 +345,13 @@ export function DesignPanel({
   theme,
   onChange,
   pageName,
+  showSavedDesigns = true,
 }: {
   theme: PageTheme;
   onChange: (theme: PageTheme) => void;
   pageName: string;
+  /** Off when the panel edits a saved design itself rather than a page. */
+  showSavedDesigns?: boolean;
 }) {
   const t = resolveTheme(theme);
   const set = (patch: Partial<PageTheme>) => onChange({ ...theme, ...patch });
@@ -353,9 +365,13 @@ export function DesignPanel({
         <SectionTitle
           icon={<Palette className="size-4" />}
           title="Design"
-          hint="Pick a look, or reuse one of your saved designs."
+          hint={
+            showSavedDesigns
+              ? "Pick a look, or reuse one of your saved designs."
+              : "Start from a look, then make it your own."
+          }
         />
-        <Templates theme={theme} onChange={onChange} />
+        <Templates theme={theme} onChange={onChange} showSaved={showSavedDesigns} />
       </Card>
 
       <Card className="flex flex-col gap-5">

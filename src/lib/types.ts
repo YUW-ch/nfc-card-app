@@ -28,6 +28,8 @@ export interface Location {
   timezone: string;
   googlePlaceId?: string | null;
   googleReviewUrl?: string | null;
+  /** Over the plan's location limit: kept and live, but nothing on it can change. */
+  readOnly: boolean;
 }
 
 export interface PageSummary {
@@ -62,7 +64,7 @@ export interface Card {
   /** Custom link instead of a page (web address, tel:, mailto:, sms:). */
   linkUrl: string | null;
   activePage?: Pick<PageSummary, "id" | "name" | "kind" | "slug" | "published"> | null;
-  location?: { id: string; name: string } | null;
+  location?: { id: string; name: string; readOnly: boolean } | null;
   createdAt: string;
 }
 
@@ -107,9 +109,32 @@ export interface PlanFeatures {
   createPages: boolean;
 }
 
+export interface CompanySubscription {
+  status: "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELLED" | "PAUSED";
+  /** STRIPE = self-serve, MANUAL = set by Taplino staff, SYSTEM = Starter baseline. */
+  source: "STRIPE" | "MANUAL" | "SYSTEM";
+  currentPeriodEnd: string;
+  /** When a Stripe subscription is scheduled to end. */
+  cancelAt: string | null;
+  stripeSubscriptionId: string | null;
+  plan: SubscriptionPlan;
+}
+
 export interface BillingResponse {
-  subscription: { status?: string; tier?: string } | null;
+  subscription: CompanySubscription | null;
   features: PlanFeatures;
+  /** Pages are live and editable (plan or staff override). Otherwise read-only and offline. */
+  pagesActive: boolean;
+  billing: {
+    /** Stripe is configured, so plans can be booked online. */
+    online: boolean;
+    /** Local development without Stripe: plan changes apply without payment. */
+    simulated: boolean;
+    /** The current user holds MANAGE_BILLING. */
+    canManage: boolean;
+    /** A Stripe customer exists, so the billing portal can open. */
+    hasAccount: boolean;
+  };
 }
 
 /** An entry in the public plan catalogue (`GET /billing/plans`). */

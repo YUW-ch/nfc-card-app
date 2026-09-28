@@ -39,10 +39,13 @@ export function PlanGate({
 export function UpgradeNotice({
   title,
   description = "Contact us at hello@taplino.ch to upgrade your plan.",
+  action,
   className,
 }: {
   title: string;
   description?: string;
+  /** Optional button under the text. */
+  action?: ReactNode;
   className?: string;
 }) {
   return (
@@ -56,6 +59,7 @@ export function UpgradeNotice({
       <div>
         <p className="font-semibold text-ink">{title}</p>
         <p className="mt-1 text-sm text-muted">{description}</p>
+        {action && <div className="mt-3">{action}</div>}
       </div>
     </div>
   );

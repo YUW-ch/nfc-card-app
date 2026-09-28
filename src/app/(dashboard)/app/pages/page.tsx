@@ -14,11 +14,18 @@ import {
   ChevronRight,
   LayoutGrid,
   Search,
+  Palette,
+  Check,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useCompanyId } from "@/lib/company";
 import { formatPlanNames, usePermissions } from "@/lib/permissions";
 import type { Page, PageKind, PageSummary } from "@/lib/types";
+import type { PageTheme } from "@/lib/page-content";
+import { FONTS, allFontsStylesheetHref, resolveTheme } from "@/lib/page-theme";
+import { designTemplateServices } from "@/lib/design-templates";
+import type { DesignTemplate } from "@/components/builders/host";
+import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
 import { Badge, Button, Card, EmptyState, Field, Input, Select, Spinner } from "@/components/ui";
 import { Modal } from "@/components/modal";
@@ -47,8 +54,9 @@ const KIND_META: Record<PageKind, { name: string; icon: typeof Star }> = {
 
 export default function PagesPage() {
   const companyId = useCompanyId();
-  const { canManage, can, planLoading, planName, plansWith } = usePermissions();
-  const canCreate = canManage && can("createPages");
+  const { canManage, pagesActive, planLoading, planName, plansWith } = usePermissions();
+  // Pages are part of the plan, or staff turned them on for this business.
+  const canCreate = canManage && pagesActive;
   const upgradePlans = plansWith("createPages");
   const router = useRouter();
   const qc = useQueryClient();
@@ -56,6 +64,14 @@ export default function PagesPage() {
   const [creating, setCreating] = useState(false);
   const [kind, setKind] = useState<PageKind>("REVIEW");
   const [name, setName] = useState("");
+  const [designId, setDesignId] = useState<string | null>(null);
+
+  const templates = useMemo(() => designTemplateServices(companyId), [companyId]);
+  const { data: designs } = useQuery({
+    queryKey: templates.queryKey,
+    queryFn: templates.list,
+  });
+  const chosenDesign = designs?.find((d) => d.id === designId);
 
   const { data: pages, isLoading } = useQuery({
     queryKey: ["pages", companyId],
@@ -64,7 +80,11 @@ export default function PagesPage() {
 
   const create = useMutation({
     mutationFn: () =>
-      api.post<Page>(`/companies/${companyId}/pages`, { kind, name: name.trim() }),
+      api.post<Page>(`/companies/${companyId}/pages`, {
+        kind,
+        name: name.trim(),
+        ...(chosenDesign && { theme: chosenDesign.theme }),
+      }),
     onSuccess: (page) => {
       qc.invalidateQueries({ queryKey: ["pages", companyId] });
       router.push(`/app/pages/${page.id}`);
@@ -90,6 +110,7 @@ export default function PagesPage() {
   const openCreate = () => {
     setKind("REVIEW");
     setName("");
+    setDesignId(null);
     setCreating(true);
   };
 
@@ -100,29 +121,56 @@ export default function PagesPage() {
         title="Pages"
         description="Build the pages your NFC cards point to."
         actions={
-          canCreate && (
-            <Button onClick={openCreate}>
-              <Plus className="size-4" /> New page
-            </Button>
+          canManage &&
+          pagesActive && (
+            <>
+              <Link href="/app/pages/designs/new">
+                <Button variant="outline">
+                  <Palette className="size-4" /> New design
+                </Button>
+              </Link>
+              {canCreate && (
+                <Button onClick={openCreate}>
+                  <Plus className="size-4" /> New page
+                </Button>
+              )}
+            </>
           )
         }
       />
 
       {!canManage && <ViewOnlyNotice className="mb-6" />}
-      {canManage && !canCreate && !planLoading && (
+      {!pagesActive && !planLoading && (
         <UpgradeNotice
           className="mb-6"
           title={
-            planName
-              ? `Your ${planName} plan does not include creating pages`
-              : "Creating pages is not in your plan"
+            planName ? `Your ${planName} plan does not include pages` : "Pages are not in your plan"
           }
           description={
             upgradePlans.length > 0
-              ? `We set up your pages for you. Upgrade to ${formatPlanNames(upgradePlans)} to build your own, or contact us at hello@taplino.ch.`
-              : "We set up your pages for you. Contact us at hello@taplino.ch if you want to build your own."
+              ? `Your pages are saved but offline, and cards that point to them open taplino.ch. Upgrade to ${formatPlanNames(upgradePlans)} to edit and publish them again, or contact us at hello@taplino.ch.`
+              : "Your pages are saved but offline, and cards that point to them open taplino.ch. Contact us at hello@taplino.ch to bring them back."
           }
         />
+      )}
+
+      {designs && designs.length > 0 && (
+        <section className="mb-10">
+          {/* Loads the catalogue fonts so each thumbnail shows its heading font. */}
+          <link rel="stylesheet" href={allFontsStylesheetHref()} precedence="default" />
+          <div className="mb-3 flex items-center gap-2">
+            <Palette className="size-4 text-accent" />
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Designs</h2>
+            <span className="text-xs text-muted">({designs.length})</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {designs.map((d) => (
+              <Link key={d.id} href={`/app/pages/designs/${d.id}`}>
+                <DesignThumb design={d} />
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
 
       {isLoading ? (
@@ -189,7 +237,7 @@ export default function PagesPage() {
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {list.map((p) => (
-                    <PageRow key={p.id} page={p} />
+                    <PageRow key={p.id} page={p} offline={!pagesActive} />
                   ))}
                 </div>
               </section>
@@ -252,6 +300,30 @@ export default function PagesPage() {
             </div>
           </div>
 
+          {designs && designs.length > 0 && (
+            <div>
+              <span className="mb-1.5 block text-sm font-semibold text-ink">Design</span>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <button type="button" onClick={() => setDesignId(null)} className="text-left">
+                  <DesignThumb design={{ name: "Default", theme: {} }} active={!designId} />
+                </button>
+                {designs.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => setDesignId(d.id)}
+                    className="text-left"
+                  >
+                    <DesignThumb design={d} active={designId === d.id} />
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-xs text-muted">
+                Copies its colours, fonts, logo and cover. You can change them later.
+              </p>
+            </div>
+          )}
+
           <Field label="Name">
             <Input
               autoFocus
@@ -275,7 +347,55 @@ export default function PagesPage() {
   );
 }
 
-function PageRow({ page }: { page: PageSummary }) {
+/** A small preview of a saved design: background, accent, heading font and logo. */
+function DesignThumb({
+  design,
+  active,
+}: {
+  design: Pick<DesignTemplate, "name"> & { theme: PageTheme };
+  active?: boolean;
+}) {
+  const t = resolveTheme(design.theme);
+  return (
+    <div
+      className={cn(
+        "relative flex flex-col overflow-hidden rounded-2xl border transition hover:-translate-y-0.5",
+        active ? "border-accent ring-2 ring-accent/30" : "border-line hover:border-ink/25",
+      )}
+    >
+      <div
+        className="flex h-20 items-end justify-between gap-2 bg-cover bg-center px-3 pb-2.5"
+        style={{
+          backgroundColor: t.backgroundColor,
+          color: t.textColor,
+          backgroundImage: t.coverUrl
+            ? `linear-gradient(to top, ${t.backgroundColor}, transparent 70%), url("${t.coverUrl}")`
+            : undefined,
+        }}
+      >
+        {t.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={t.logoUrl} alt="" className="h-8 max-w-[60%] object-contain" />
+        ) : (
+          <span className="text-2xl leading-none" style={{ fontFamily: FONTS[t.headingFont].css }}>
+            Aa
+          </span>
+        )}
+        <span className="h-3 w-8 shrink-0 rounded-full" style={{ background: t.brandColor }} />
+      </div>
+      <span className="truncate bg-white px-3 py-2 text-xs font-semibold text-ink">
+        {design.name}
+      </span>
+      {active && (
+        <span className="absolute right-2 top-2 flex size-5 items-center justify-center rounded-full bg-accent text-white">
+          <Check className="size-3" />
+        </span>
+      )}
+    </div>
+  );
+}
+
+function PageRow({ page, offline }: { page: PageSummary; offline: boolean }) {
   const Icon = KIND_META[page.kind].icon;
   return (
     <Link href={`/app/pages/${page.id}`}>
@@ -287,7 +407,9 @@ function PageRow({ page }: { page: PageSummary }) {
           <p className="truncate text-sm font-semibold text-ink">{page.name}</p>
           <div className="mt-1 flex items-center gap-2">
             <Badge tone="neutral">{KIND_META[page.kind].name}</Badge>
-            {page.published ? (
+            {offline ? (
+              <Badge tone="muted">Offline</Badge>
+            ) : page.published ? (
               <Badge tone="positive">Published</Badge>
             ) : (
               <Badge tone="muted">Draft</Badge>

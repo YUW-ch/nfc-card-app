@@ -43,6 +43,8 @@ import {
   LOGO_SCALE,
   PRESETS,
   exampleCard,
+  exampleText,
+  withPrintedText,
   type CardConfig,
   type CardLayout,
   type CardType,
@@ -182,14 +184,72 @@ function Segmented<T extends string>({
 }
 
 // A labelled on/off switch.
+function SwitchTrack({ checked, small = false }: { checked: boolean; small?: boolean }) {
+  return (
+    <span
+      className={`relative shrink-0 rounded-full transition-colors ${small ? "h-5 w-9" : "h-6 w-11"} ${
+        checked ? "bg-ink" : "bg-line"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 rounded-full bg-paper shadow transition-all ${small ? "h-4 w-4" : "h-5 w-5"} ${
+          checked ? (small ? "left-[1.125rem]" : "left-[1.375rem]") : "left-0.5"
+        }`}
+      />
+    </span>
+  );
+}
+
+// A switch card. `children` is a submenu shown inside the card while it is on.
 function Toggle({
   label,
   hint,
   checked,
   onChange,
+  children,
+  className = "",
 }: {
   label: string;
-  hint: string;
+  hint?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  children?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`rounded-xl border border-line bg-paper transition-colors hover:border-ink/40 ${className}`}
+    >
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className="flex w-full items-center justify-between gap-4 px-3.5 py-3 text-left"
+      >
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-ink">{label}</span>
+          {hint && <span className="mt-0.5 block text-xs leading-snug text-muted">{hint}</span>}
+        </span>
+        <SwitchTrack checked={checked} />
+      </button>
+      {checked && children && (
+        // Inset, tinted and indented behind a guide line so it reads as nested
+        <div className="mx-3.5 mb-3.5 ml-5 space-y-2.5 rounded-lg border-l-2 border-ink/15 bg-paper-2/70 py-2.5 pl-3 pr-2.5">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// A compact switch for submenus inside a Toggle card.
+function SubToggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
@@ -199,23 +259,10 @@ function Toggle({
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="flex w-full items-center justify-between gap-4 rounded-xl border border-line bg-paper px-3.5 py-3 text-left transition-colors hover:border-ink/40"
+      className="flex w-full items-center justify-between gap-4 text-left"
     >
-      <span className="min-w-0">
-        <span className="block text-sm font-semibold text-ink">{label}</span>
-        <span className="mt-0.5 block text-xs leading-snug text-muted">{hint}</span>
-      </span>
-      <span
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-          checked ? "bg-ink" : "bg-line"
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-paper shadow transition-all ${
-            checked ? "left-[1.375rem]" : "left-0.5"
-          }`}
-        />
-      </span>
+      <span className="text-[0.8125rem] font-medium text-ink/80">{label}</span>
+      <SwitchTrack checked={checked} small />
     </button>
   );
 }
@@ -524,6 +571,8 @@ export function CardEditor({
   const setField = (key: keyof ContactDraft, val: string) =>
     setEdits((d) => ({ ...d, [key]: val }));
 
+  const example = exampleText(config, t);
+
   const applyPreset = (p: Preset) => {
     setActivePreset(p.key);
     setConfig((c) => ({
@@ -537,16 +586,11 @@ export function CardEditor({
       layout: p.layout,
       headerShape: p.headerShape,
       showStars: p.showStars,
+      logoOnly: p.logoOnly ?? false,
+      template: p.key,
       // Only seed the category if the customer hasn't typed their own.
       category: c.category || t(p.category),
     }));
-  };
-
-  const presetLabel: Record<Preset["key"], string> = {
-    restaurant: t(s.presetRestaurant),
-    electronics: t(s.presetElectronics),
-    fitness: t(s.presetFitness),
-    beauty: t(s.presetBeauty),
   };
 
   const onLogo = (file: File | undefined) => {
@@ -579,6 +623,7 @@ export function CardEditor({
 
   const loadDraft = (design: CardConfig, quantity: number, id: string | null) => {
     setConfig(design);
+    setActivePreset(design.template);
     setQty(quantity);
     setEditingId(id);
     setLogoError(null);
@@ -700,7 +745,10 @@ export function CardEditor({
         cartView.map(async (i) => ({
           productKey: i.design.cardType,
           quantity: i.quantity,
-          design: { ...i.design, logoDataUrl: await prepareLogo(i.design.logoDataUrl) },
+          design: withPrintedText(
+            { ...i.design, logoDataUrl: await prepareLogo(i.design.logoDataUrl) },
+            t,
+          ),
         })),
       );
       const trim = (v: string) => v.trim() || undefined;
@@ -863,27 +911,67 @@ export function CardEditor({
                       : "border-line hover:border-ink/40"
                   }`}
                 >
+                  {/* Mini sketch of the card: header band, body, tap marker */}
                   <div
-                    className="mb-2 flex aspect-[5/4] items-center justify-center rounded-xl"
-                    style={{ backgroundColor: p.bodyColor }}
+                    className="mb-2 flex aspect-[5/4] flex-col gap-1 overflow-hidden rounded-xl p-1.5"
+                    style={{ backgroundColor: p.bodyColor, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.06)" }}
                   >
-                    <div
-                      className="flex h-full w-full flex-col items-center justify-center rounded-xl"
-                      style={{ backgroundColor: p.headerColor }}
-                    >
-                      <div className="flex gap-0.5">
-                        {[0, 1, 2].map((i) => (
+                    {p.logoOnly ? (
+                      <span
+                        className="mx-auto mt-1 h-[38%] w-[46%] rounded-md border border-dashed"
+                        style={{ borderColor: `${p.accentColor}88` }}
+                      />
+                    ) : (
+                      <div
+                        className="flex h-[42%] shrink-0 flex-col items-center justify-center gap-1 rounded-lg"
+                        style={{ backgroundColor: p.headerColor }}
+                      >
+                        {p.showStars && (
+                          <div className="flex gap-0.5">
+                            {[0, 1, 2, 3, 4].map((i) => (
+                              <span
+                                key={i}
+                                className="h-1 w-1 rounded-full"
+                                style={{ backgroundColor: p.starColor }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        <span
+                          className="h-1 w-1/2 rounded-full opacity-80"
+                          style={{ backgroundColor: p.headerTextColor }}
+                        />
+                      </div>
+                    )}
+                    <div className="flex flex-1 flex-col items-center justify-center gap-1">
+                      {!p.logoOnly &&
+                        (p.layout === "list" ? (
+                          [0, 1].map((i) => (
+                            <span
+                              key={i}
+                              className="h-0.5 w-2/5 rounded-full opacity-50"
+                              style={{ backgroundColor: p.accentColor }}
+                            />
+                          ))
+                        ) : p.layout === "text" ? (
                           <span
-                            key={i}
-                            className="h-1.5 w-1.5 rounded-full"
-                            style={{ backgroundColor: p.starColor }}
+                            className="h-1 w-3/5 rounded-full opacity-70"
+                            style={{ backgroundColor: p.accentColor }}
+                          />
+                        ) : (
+                          <span
+                            className="h-2.5 w-1/4 rounded-sm opacity-60"
+                            style={{ backgroundColor: p.accentColor }}
                           />
                         ))}
-                      </div>
+                      <span
+                        className="size-3.5 rounded-full"
+                        style={{ border: `1.5px solid ${p.accentColor}`, backgroundColor: `${p.accentColor}14` }}
+                      />
                     </div>
                   </div>
                   <span className="block truncate text-xs font-semibold text-ink">
-                    {presetLabel[p.key]}
+                    {t(p.name)}
                   </span>
                 </button>
               );
@@ -898,8 +986,36 @@ export function CardEditor({
         <Section n={1} title={t(s.stepStyle)}>
           <p className="mb-4 text-sm text-muted">{t(s.styleHint)}</p>
 
-          {/* Layout picker — review/menu cards only */}
           {!isBusiness && (
+            <div className="mb-6">
+              <Toggle
+                label={t(s.logoOnly)}
+                hint={t(s.logoOnlyHint)}
+                checked={config.logoOnly}
+                onChange={(v) => set("logoOnly", v)}
+              >
+                <SubToggle
+                  label={t(s.showTapZoneText)}
+                  checked={config.showTapZoneText !== false}
+                  onChange={(v) => set("showTapZoneText", v)}
+                />
+                {config.showTapZoneText !== false && (
+                  <input
+                    type="text"
+                    maxLength={40}
+                    aria-label={t(s.fieldTapZoneText)}
+                    className={inputCls}
+                    value={config.tapZoneText ?? ""}
+                    placeholder={t(s.cardTapZone)}
+                    onChange={(e) => set("tapZoneText", e.target.value)}
+                  />
+                )}
+              </Toggle>
+            </div>
+          )}
+
+          {/* Layout picker — review/menu cards only */}
+          {!isBusiness && !config.logoOnly && (
           <>
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
             {t(s.layoutLabel)}
@@ -944,7 +1060,7 @@ export function CardEditor({
                 { value: "display", label: t(s.fontDisplay) },
               ]}
             />
-            {!isBusiness && (
+            {!isBusiness && !config.logoOnly && (
             <Segmented<HeaderShape>
               label={t(s.headerEdge)}
               value={config.headerShape}
@@ -959,8 +1075,32 @@ export function CardEditor({
             )}
           </div>
 
-          {!isBusiness && (
+          {!isBusiness && !config.logoOnly && (
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <Toggle
+              label={t(s.showTapZone)}
+              hint={t(s.showTapZoneHint)}
+              checked={config.showTapZone}
+              onChange={(v) => set("showTapZone", v)}
+              className="sm:col-span-2"
+            >
+              <SubToggle
+                label={t(s.showTapZoneText)}
+                checked={config.showTapZoneText !== false}
+                onChange={(v) => set("showTapZoneText", v)}
+              />
+              {config.showTapZoneText !== false && (
+                <input
+                  type="text"
+                  maxLength={40}
+                  aria-label={t(s.fieldTapZoneText)}
+                  className={inputCls}
+                  value={config.tapZoneText ?? ""}
+                  placeholder={t(s.cardTapZone)}
+                  onChange={(e) => set("tapZoneText", e.target.value)}
+                />
+              )}
+            </Toggle>
             <Toggle
               label={t(s.showStars)}
               hint={t(s.showStarsHint)}
@@ -979,14 +1119,9 @@ export function CardEditor({
               checked={config.showGoogle}
               onChange={(v) => set("showGoogle", v)}
             />
-            <Toggle
-              label={t(s.showTapZone)}
-              hint={t(s.showTapZoneHint)}
-              checked={config.showTapZone}
-              onChange={(v) => set("showTapZone", v)}
-            />
           </div>
           )}
+
         </Section>
 
         {/* 3. Logo */}
@@ -1068,13 +1203,17 @@ export function CardEditor({
         {/* 4. Colours */}
         <Section n={3} title={t(s.stepColors)}>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            {!isBusiness && (
+            {!isBusiness && !config.logoOnly && (
               <>
                 <ColorField label={t(s.colorHeader)} value={config.headerColor} onChange={(v) => set("headerColor", v)} />
                 <ColorField label={t(s.colorHeaderText)} value={config.headerTextColor} onChange={(v) => set("headerTextColor", v)} />
-                <ColorField label={t(s.colorBody)} value={config.bodyColor} onChange={(v) => set("bodyColor", v)} />
-                <ColorField label={t(s.colorStars)} value={config.starColor} onChange={(v) => set("starColor", v)} />
               </>
+            )}
+            {!isBusiness && (
+              <ColorField label={t(s.colorBody)} value={config.bodyColor} onChange={(v) => set("bodyColor", v)} />
+            )}
+            {!isBusiness && !config.logoOnly && (
+              <ColorField label={t(s.colorStars)} value={config.starColor} onChange={(v) => set("starColor", v)} />
             )}
             <ColorField label={t(s.colorAccent)} value={config.accentColor} onChange={(v) => set("accentColor", v)} />
           </div>
@@ -1155,12 +1294,14 @@ export function CardEditor({
           </>
           ) : (
           <div className="space-y-4">
+            {!config.logoOnly && (
+            <>
             <Field label={t(s.fieldHeadline)}>
               <input
                 type="text"
                 className={inputCls}
                 value={config.headline}
-                placeholder={t(s.defaultHeadline)}
+                placeholder={example.headline}
                 onChange={(e) => set("headline", e.target.value)}
               />
             </Field>
@@ -1195,7 +1336,7 @@ export function CardEditor({
                   rows={3}
                   className={textareaCls}
                   value={config.bodyText}
-                  placeholder={t(s.fieldBodyTextPh)}
+                  placeholder={example.bodyText}
                   onChange={(e) => set("bodyText", e.target.value)}
                 />
               </Field>
@@ -1208,7 +1349,7 @@ export function CardEditor({
                     type="text"
                     className={inputCls}
                     value={config.listTitle}
-                    placeholder={t(s.fieldListTitlePh)}
+                    placeholder={example.listTitle}
                     onChange={(e) => set("listTitle", e.target.value)}
                   />
                 </Field>
@@ -1217,11 +1358,14 @@ export function CardEditor({
                     rows={4}
                     className={textareaCls}
                     value={config.listItems}
-                    placeholder={t(s.fieldListItemsPh)}
+                    placeholder={example.listItems}
                     onChange={(e) => set("listItems", e.target.value)}
                   />
                 </Field>
               </div>
+            )}
+
+            </>
             )}
 
             <Field label={t(s.fieldCategory)}>
@@ -1494,7 +1638,7 @@ export function CardEditor({
           {/* The dashed logo guide only shows while designing, so what the
               customer sees from the next step on matches the print. */}
           <CardPreview config={config} locale={locale} guides={step === 2} />
-          {step === 2 && !isBusiness && config.layout === "logo" && (
+          {step === 2 && !isBusiness && (config.logoOnly || config.layout === "logo") && (
             <p className="mt-2 text-center text-xs text-muted">{t(s.guideHint)}</p>
           )}
 
