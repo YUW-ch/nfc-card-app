@@ -8,6 +8,7 @@ import { AlertCircle, Building2 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
 import { Button, Card, Spinner } from "@/components/ui";
+import { Logo } from "@/components/logo";
 
 interface InviteInfo {
   email: string;
@@ -17,18 +18,10 @@ interface InviteInfo {
   expiresAt: string;
 }
 
-function Wordmark() {
-  return (
-    <span className="display text-3xl tracking-tight text-ink">
-      taplino<span className="text-accent">.</span>
-    </span>
-  );
-}
-
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-paper px-4 py-12">
-      <Wordmark />
+      <Logo size="lg" />
       {children}
     </main>
   );

@@ -649,7 +649,7 @@ export const FONT_STACKS: Record<FontStyle, string> = {
   serif: '"Iowan Old Style", Georgia, "Times New Roman", serif',
   rounded:
     'ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", "Quicksand", var(--font-body)',
-  display: "var(--font-display)",
+  display: 'var(--font-bricolage), "Bricolage Grotesque", sans-serif',
 };
 
 // Live price and availability per product, keyed by product key (matches

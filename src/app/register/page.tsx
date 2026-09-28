@@ -6,21 +6,14 @@ import { useSearchParams } from "next/navigation";
 import { MailCheck } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button, Card, Field, Input } from "@/components/ui";
-
-function Wordmark() {
-  return (
-    <span className="display text-3xl tracking-tight text-ink">
-      taplino<span className="text-accent">.</span>
-    </span>
-  );
-}
+import { Logo } from "@/components/logo";
 
 export default function RegisterPage() {
   return (
     <Suspense
       fallback={
         <main className="flex min-h-dvh items-center justify-center bg-paper px-4 py-12">
-          <Wordmark />
+          <Logo size="lg" />
         </main>
       }
     >
@@ -70,7 +63,7 @@ function RegisterForm() {
 
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-paper px-4 py-12">
-      <Wordmark />
+      <Logo size="lg" />
 
       {sent ? (
         <Card className="w-full max-w-md text-center">

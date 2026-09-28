@@ -8,6 +8,7 @@ import { CompanyProvider, useCompany } from "@/lib/company";
 import { api, ApiError } from "@/lib/api";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { Button, Card, Field, Input, Spinner } from "@/components/ui";
+import { Logo } from "@/components/logo";
 
 function FullScreenSpinner() {
   return (
@@ -57,9 +58,7 @@ function Onboarding() {
 
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-paper px-4 py-12">
-      <span className="display text-3xl tracking-tight text-ink">
-        taplino<span className="text-accent">.</span>
-      </span>
+      <Logo size="lg" />
       <Card className="w-full max-w-md">
         <span className="eyebrow text-accent">Welcome</span>
         <h1 className="display mt-2 text-2xl text-ink">Create your first business</h1>

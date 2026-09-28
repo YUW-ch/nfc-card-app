@@ -5,16 +5,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { MailCheck, AlertCircle } from "lucide-react";
 import { Button, Card } from "@/components/ui";
+import { Logo } from "@/components/logo";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3311";
-
-function Wordmark() {
-  return (
-    <span className="display text-3xl tracking-tight text-ink">
-      taplino<span className="text-accent">.</span>
-    </span>
-  );
-}
 
 function VerifyEmailInner() {
   const params = useSearchParams();
@@ -71,7 +64,7 @@ function VerifyEmailInner() {
 export default function VerifyEmailPage() {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-paper px-4 py-12">
-      <Wordmark />
+      <Logo size="lg" />
       <Suspense
         fallback={
           <Card className="w-full max-w-md">

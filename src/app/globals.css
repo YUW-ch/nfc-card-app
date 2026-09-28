@@ -24,7 +24,7 @@
   --color-positive: #16a34a;
   --color-negative: #dc2626;
 
-  --font-display: var(--font-bricolage), "Bricolage Grotesque", sans-serif;
+  --font-display: var(--font-serif), "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
   --font-body: var(--font-hanken), "Hanken Grotesk", sans-serif;
 
   --radius-card: 1.4rem;
@@ -62,9 +62,9 @@ body {
 /* Utilities -------------------------------------------------------- */
 .display {
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.03em;
-  line-height: 0.98;
+  line-height: 1.1;
 }
 
 .eyebrow {

@@ -24,6 +24,7 @@ import { authClient } from "@/lib/auth-client";
 import { useCompany } from "@/lib/company";
 import { usePermissions } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/logo";
 
 interface NavItem {
   label: string;
@@ -46,8 +47,8 @@ const NAV: NavItem[] = [
 
 function Wordmark() {
   return (
-    <Link href="/app" className="display text-2xl tracking-tight text-ink">
-      taplino<span className="text-accent">.</span>
+    <Link href="/app" aria-label="Taplino home">
+      <Logo />
     </Link>
   );
 }

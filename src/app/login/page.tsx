@@ -6,14 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { authClient, useSession } from "@/lib/auth-client";
 import { Button, Card, Field, Input } from "@/components/ui";
-
-function Wordmark() {
-  return (
-    <span className="display text-3xl tracking-tight text-ink">
-      taplino<span className="text-accent">.</span>
-    </span>
-  );
-}
+import { Logo } from "@/components/logo";
 
 // Dev-only convenience: prefill the form with the backend's seeded dev user
 // (nfc-card-backend `pnpm db:seed:dev`), overridable via .env.local.
@@ -180,7 +173,7 @@ function DevAccounts({
 export default function LoginPage() {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-paper px-4 py-12">
-      <Wordmark />
+      <Logo size="lg" />
       <Suspense
         fallback={
           <Card className="w-full max-w-md">
